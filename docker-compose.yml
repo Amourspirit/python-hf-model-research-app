@@ -1,0 +1,11 @@
+services:
+  hf-exporter:
+    build: .
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      - HF_TOKEN=${HF_TOKEN:-}
+    volumes:
+      - ./exports:/output
+    command: ["text-generation", "--output", "/output/models.csv"]

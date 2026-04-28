@@ -15,3 +15,13 @@ wheels/
 
 # Local output artifacts
 test.csv
+
+# Environment files
+.env
+!.env.example
+
+# Docker files
+docker-compose.override.yml
+
+# storage for Hugging Face Hub exports
+exports/

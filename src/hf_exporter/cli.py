@@ -1,6 +1,9 @@
 import typer
 import os
+from dotenv import load_dotenv
 from huggingface_hub import HfApi
+
+load_dotenv()
 import pandas as pd
 from rich.console import Console
 from rich.progress import Progress
