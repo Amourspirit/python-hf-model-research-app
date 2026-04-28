@@ -14,8 +14,6 @@ dependencies = [
 [project.scripts]
 hf-exporter = "hf_exporter.cli:app"
 
-[project.optional-dependencies]
-dev = ["ruff>=0.5", "pytest>=8.0"]
 
 [build-system]
 requires = ["hatchling"]
@@ -30,4 +28,5 @@ line-length = 100
 [dependency-groups]
 dev = [
     "pytest>=9.0.3",
+    "ruff>=0.15.12",
 ]

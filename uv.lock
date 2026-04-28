@@ -100,30 +100,25 @@ dependencies = [
     { name = "typer" },
 ]
 
-[package.optional-dependencies]
-dev = [
-    { name = "pytest" },
-    { name = "ruff" },
-]
-
 [package.dev-dependencies]
 dev = [
     { name = "pytest" },
+    { name = "ruff" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "huggingface-hub", specifier = ">=0.25.0" },
     { name = "pandas", specifier = ">=2.2" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
     { name = "rich", specifier = ">=13.7" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.5" },
     { name = "typer", extras = ["all"], specifier = ">=0.12" },
 ]
-provides-extras = ["dev"]
 
 [package.metadata.requires-dev]
-dev = [{ name = "pytest", specifier = ">=9.0.3" }]
+dev = [
+    { name = "pytest", specifier = ">=9.0.3" },
+    { name = "ruff", specifier = ">=0.15.12" },
+]
 
 [[package]]
 name = "hf-xet"
