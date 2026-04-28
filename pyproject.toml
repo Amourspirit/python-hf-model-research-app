@@ -1,0 +1,33 @@
+[project]
+name = "hf-model-exporter"
+version = "0.1.0"
+description = "CLI to export Hugging Face models by query to CSV/JSON"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "huggingface_hub>=0.25.0",
+    "pandas>=2.2",
+    "typer[all]>=0.12",
+    "rich>=13.7",
+]
+
+[project.scripts]
+hf-exporter = "hf_exporter.cli:app"
+
+[project.optional-dependencies]
+dev = ["ruff>=0.5", "pytest>=8.0"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/hf_exporter"]
+
+[tool.ruff]
+line-length = 100
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
+]
