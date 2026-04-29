@@ -144,6 +144,22 @@
       background: var(--hover);
     }
 
+    a {
+      color: var(--accent-2);
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .external-link-icon {
+      font-size: 0.8em;
+      margin-left: 4px;
+      vertical-align: text-top;
+      opacity: 0.7;
+    }
+
     .footer {
       display: flex;
       justify-content: space-between;
@@ -354,8 +370,11 @@
 
       for (const item of items) {
         const row = document.createElement("tr");
+        const modelLink = item.modelId 
+          ? `<a href="https://huggingface.co/${item.modelId}" target="_blank" rel="noopener noreferrer">${item.modelId}<span class="external-link-icon">↗</span></a>`
+          : "";
         row.innerHTML = `
-          <td>${item.modelId || ""}</td>
+          <td>${modelLink}</td>
           <td>${item.author || ""}</td>
           <td>${item.downloads ?? 0}</td>
           <td>${item.likes ?? 0}</td>
