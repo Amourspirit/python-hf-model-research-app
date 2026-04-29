@@ -1,11 +1,19 @@
 services:
   hf-exporter:
     build: .
-    env_file:
-      - path: .env
-        required: false
     environment:
       - HF_TOKEN=${HF_TOKEN:-}
     volumes:
       - ./exports:/output
-    command: ["text-generation", "--output", "/output/models.csv"]
+    stdin_open: true
+    tty: true
+    entrypoint: ["/bin/bash"]
+    command: []
+
+  hf-exporter-cli:
+    build: .
+    environment:
+      - HF_TOKEN=${HF_TOKEN:-}
+    volumes:
+      - ./exports:/output
+    command: ["--help"]

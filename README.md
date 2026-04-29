@@ -103,8 +103,56 @@ uv run pytest
 
 ## Docker
 
-Build image:
+Build the image:
 
 ```bash
 docker build -t hf-exporter .
 ```
+
+Use Docker Compose for the recommended workflows.
+
+Interactive shell mode:
+
+```bash
+docker compose run --rm hf-exporter
+```
+
+This starts a normal `bash` shell inside the container. In that shell, use the `hf` helper command:
+
+```bash
+hf "text-generation"
+hf "llama" --fmt json
+hf "gpt" --task text-generation --author openai
+```
+
+`hf` behavior:
+
+- Runs the project CLI from inside the container.
+- Writes output to `/output`, which is mapped to the local `exports/` directory.
+- If `--output` is omitted, it chooses a default file name based on format:
+- CSV output defaults to `/output/models.csv`.
+- JSON output defaults to `/output/models.json`.
+- If you provide `--output`, your path is used instead.
+
+Examples with explicit output:
+
+```bash
+hf "text-generation" --output /output/text-generation.csv
+hf "llama" --fmt json --output /output/llama.json
+```
+
+Direct CLI mode without an interactive shell:
+
+```bash
+docker compose run --rm hf-exporter-cli "text-generation" --output /output/models.csv
+docker compose run --rm hf-exporter-cli "llama" --fmt json --output /output/models.json
+```
+
+Authentication in Docker:
+
+```bash
+export HF_TOKEN=your_token_here
+docker compose run --rm hf-exporter
+```
+
+The Compose services pass `HF_TOKEN` through if it is set in your shell. If it is unset, the container still starts and runs without authentication.
