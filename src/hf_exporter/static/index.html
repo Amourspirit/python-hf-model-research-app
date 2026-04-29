@@ -356,6 +356,13 @@
       color: var(--text-primary);
     }
 
+    td.model-cell {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
     tbody tr {
       transition: var(--transition);
     }
@@ -610,6 +617,20 @@
 
     tbody tr.clickable-row {
       cursor: pointer;
+    }
+
+    tbody tr.clickable-row:hover td.model-cell .row-indicator {
+      color: var(--accent-primary);
+      transform: translateX(2px);
+    }
+
+    .row-indicator {
+      color: var(--text-tertiary);
+      font-size: 0.95rem;
+      font-weight: 700;
+      line-height: 1;
+      transition: var(--transition);
+      flex-shrink: 0;
     }
   </style>
 </head>
@@ -1001,21 +1022,16 @@
       for (const item of items) {
         const row = document.createElement("tr");
         row.className = "clickable-row";
-        const modelLink = item.modelId
-          ? `<a href="https://huggingface.co/${item.modelId}" target="_blank" rel="noopener noreferrer">${item.modelId}<span class="external-link-icon">↗</span></a>`
-          : "-";
         row.innerHTML = `
-          <td>${modelLink}</td>
+          <td class="model-cell"><span>${item.modelId || "-"}</span><span class="row-indicator" aria-hidden="true" title="View details">›</span></td>
           <td>${item.author || "-"}</td>
           <td>${(item.downloads ?? 0).toLocaleString()}</td>
           <td>${(item.likes ?? 0).toLocaleString()}</td>
           <td>${item.pipeline_tag || "-"}</td>
           <td>${item.library_name || "-"}</td>
         `;
-        row.addEventListener("click", (e) => {
-          if (!e.target.closest("a")) {
-            openDetailPanel(item);
-          }
+        row.addEventListener("click", () => {
+          openDetailPanel(item);
         });
         resultsBody.appendChild(row);
       }
