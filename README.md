@@ -2,6 +2,8 @@
 
 CLI tool to export full lists of Hugging Face models matching a query to CSV or JSON.
 
+The web app also supports persistent SQLite-backed model evaluation notes and rankings stored under the project `storage/` directory.
+
 ## Requirements
 
 - Python 3.12+
@@ -108,10 +110,12 @@ What the web app supports:
 - Server-side cached result set after each search.
 - Sortable table columns.
 - Server-side filtering by `task`, `author`, `library`, `min/max downloads`, and `min/max likes`.
+- Server-side filtering by note role, note category, model type, ranking range, and note text.
 - Pagination with default page size of `25`.
 - Export full search result set as JSON or CSV.
 - Export current filtered result set as JSON or CSV.
 - Reset action to clear cached results and table state.
+- Per-model append-only evaluation entries with role, category, model type, notes, pros, cons, context, and 1-10 ranking.
 
 Main API endpoints:
 
@@ -120,6 +124,21 @@ Main API endpoints:
 - `GET /api/export/full`: exports all fetched rows as `fmt=json|csv`.
 - `GET /api/export/filtered`: exports filtered rows as `fmt=json|csv`.
 - `POST /api/reset`: clears current cached result set.
+- `GET /api/notes/options`: returns allowed values for note role, category, and model type.
+- `GET /api/notes/{model_id}`: returns note history and summary for a model.
+- `POST /api/notes/{model_id}`: appends a new evaluation entry for a model.
+
+## Persistent Storage
+
+SQLite note data is stored in `storage/hf_exporter.db` by default for local runs.
+
+Override the database path with:
+
+```bash
+export HF_EXPORTER_DB_PATH=/custom/path/hf_exporter.db
+```
+
+The `storage/` directory is intentionally gitignored and should be treated as local durable application state.
 
 ## Development
 
@@ -193,3 +212,5 @@ docker compose run --rm hf-exporter
 ```
 
 The Compose services pass `HF_TOKEN` through if it is set in your shell. If it is unset, the container still starts and runs without authentication.
+
+Docker Compose also mounts the local `storage/` directory into `/storage` and sets `HF_EXPORTER_DB_PATH=/storage/hf_exporter.db`, so note data survives container restarts.

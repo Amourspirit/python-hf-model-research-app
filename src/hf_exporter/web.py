@@ -6,12 +6,25 @@ import time
 import uuid
 from pathlib import Path
 from threading import Lock
-from typing import Literal
+from typing import Any, Literal
 
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
+from hf_exporter.notes_store import (
+    CATEGORY_OPTIONS,
+    MODEL_TYPE_OPTIONS,
+    ROLE_OPTIONS,
+    create_note,
+    find_matching_model_ids,
+    get_database_path,
+    get_note_options,
+    get_note_summaries,
+    has_note_filters,
+    list_notes,
+    list_notes_for_models,
+)
 from hf_exporter.service import (
     MODEL_COLUMNS,
     export_rows,
@@ -48,10 +61,44 @@ class TableState(BaseModel):
     max_downloads: int | None = None
     min_likes: int | None = None
     max_likes: int | None = None
+    note_role: str | None = None
+    note_category: str | None = None
+    note_model_type: str | None = None
+    note_text: str | None = None
+    min_ranking: int | None = None
+    max_ranking: int | None = None
     sort_by: str = "downloads"
     sort_dir: Literal["asc", "desc"] = "desc"
     page: int = 1
     page_size: int = 25
+
+
+class NoteCreateRequest(BaseModel):
+    role: str
+    category: str
+    model_type: str
+    ranking: int = Field(ge=1, le=10)
+    note_text: str = ""
+    pros: str = ""
+    cons: str = ""
+    context_text: str = ""
+
+    @model_validator(mode="after")
+    def validate_payload(self) -> "NoteCreateRequest":
+        if self.role not in ROLE_OPTIONS:
+            raise ValueError("Invalid role")
+        if self.category not in CATEGORY_OPTIONS:
+            raise ValueError("Invalid category")
+        if self.model_type not in MODEL_TYPE_OPTIONS:
+            raise ValueError("Invalid model_type")
+        if not any([
+            self.note_text.strip(),
+            self.pros.strip(),
+            self.cons.strip(),
+            self.context_text.strip(),
+        ]):
+            raise ValueError("At least one content field is required")
+        return self
 
 
 def _now_epoch() -> float:
@@ -101,6 +148,39 @@ def _clear_cache(cache_key: str | None = None) -> None:
         _CACHE.clear()
 
 
+def _attach_note_summary(row: dict[str, Any], summary: dict[str, Any] | None) -> dict[str, Any]:
+    payload = dict(row)
+    payload["note_count"] = int(summary.get("note_count", 0)) if summary else 0
+    payload["average_ranking"] = summary.get("average_ranking") if summary else None
+    return payload
+
+
+def _filter_rows_by_notes(rows: list[dict[str, Any]], state: TableState) -> list[dict[str, Any]]:
+    if not has_note_filters(
+        state.note_role,
+        state.note_category,
+        state.note_model_type,
+        state.min_ranking,
+        state.max_ranking,
+        state.note_text,
+    ):
+        return rows
+
+    matched_model_ids = find_matching_model_ids(
+        role=state.note_role,
+        category=state.note_category,
+        model_type=state.note_model_type,
+        min_ranking=state.min_ranking,
+        max_ranking=state.max_ranking,
+        text=state.note_text,
+    )
+
+    if not matched_model_ids:
+        return []
+
+    return [row for row in rows if row.get("modelId") in matched_model_ids]
+
+
 def _build_table_payload(rows: list[dict], state: TableState) -> dict:
     filtered = filter_rows(
         rows,
@@ -112,21 +192,40 @@ def _build_table_payload(rows: list[dict], state: TableState) -> dict:
         min_likes=state.min_likes,
         max_likes=state.max_likes,
     )
-    sorted_rows = sort_rows(filtered, state.sort_by, state.sort_dir)
+    note_filtered = _filter_rows_by_notes(filtered, state)
+    sorted_rows = sort_rows(note_filtered, state.sort_by, state.sort_dir)
     page_rows, page, total_pages = paginate_rows(sorted_rows, state.page, state.page_size)
+    summaries = get_note_summaries([str(row.get("modelId", "")) for row in page_rows])
+    items = [_attach_note_summary(row, summaries.get(str(row.get("modelId", "")))) for row in page_rows]
 
     return {
-        "items": page_rows,
+        "items": items,
         "meta": {
             "totalFetched": len(rows),
-            "totalFiltered": len(filtered),
+            "totalFiltered": len(note_filtered),
             "page": page,
             "pageSize": max(1, state.page_size),
             "totalPages": total_pages,
             "sortBy": state.sort_by,
             "sortDir": state.sort_dir,
+            "databasePath": str(get_database_path()),
         },
     }
+
+
+def _prepare_export_rows(rows: list[dict[str, Any]], fmt: Literal["csv", "json"]) -> list[dict[str, Any]]:
+    model_ids = [str(row.get("modelId", "")) for row in rows]
+    summaries = get_note_summaries(model_ids)
+    notes_by_model = list_notes_for_models(model_ids) if fmt == "json" else {}
+
+    prepared_rows = []
+    for row in rows:
+        model_id = str(row.get("modelId", ""))
+        payload = _attach_note_summary(row, summaries.get(model_id))
+        if fmt == "json":
+            payload["notes"] = notes_by_model.get(model_id, [])
+        prepared_rows.append(payload)
+    return prepared_rows
 
 
 def _export_response(
@@ -139,7 +238,7 @@ def _export_response(
     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as temp_file:
         output_path = temp_file.name
 
-    export_rows(rows, output_path, fmt)
+    export_rows(_prepare_export_rows(rows, fmt), output_path, fmt)
     filename = f"{prefix}.{fmt}"
 
     def cleanup_file(path: str) -> None:
@@ -155,6 +254,36 @@ def _export_response(
 @app.get("/")
 def index() -> FileResponse:
     return FileResponse(INDEX_FILE)
+
+
+@app.get("/api/notes/options")
+def note_options() -> dict[str, list[str]]:
+    return get_note_options()
+
+
+@app.get("/api/notes/{model_id:path}")
+def get_model_notes(model_id: str) -> dict[str, Any]:
+    notes = list_notes(model_id)
+    summary = get_note_summaries([model_id]).get(model_id, {"note_count": 0, "average_ranking": None})
+    return {"items": notes, "summary": summary}
+
+
+@app.post("/api/notes/{model_id:path}", status_code=201)
+def create_model_note(model_id: str, payload: NoteCreateRequest) -> dict[str, Any]:
+    note = create_note(
+        model_id=model_id,
+        role=payload.role,
+        category=payload.category,
+        model_type=payload.model_type,
+        ranking=payload.ranking,
+        note_text=payload.note_text,
+        pros=payload.pros,
+        cons=payload.cons,
+        context_text=payload.context_text,
+    )
+    notes = list_notes(model_id)
+    summary = get_note_summaries([model_id]).get(model_id, {"note_count": 0, "average_ranking": None})
+    return {"item": note, "items": notes, "summary": summary}
 
 
 @app.post("/api/search")
@@ -179,6 +308,12 @@ def get_results(
     max_downloads: int | None = Query(default=None, ge=0),
     min_likes: int | None = Query(default=None, ge=0),
     max_likes: int | None = Query(default=None, ge=0),
+    note_role: str | None = None,
+    note_category: str | None = None,
+    note_model_type: str | None = None,
+    note_text: str | None = None,
+    min_ranking: int | None = Query(default=None, ge=1, le=10),
+    max_ranking: int | None = Query(default=None, ge=1, le=10),
     sort_by: str = Query(default="downloads"),
     sort_dir: Literal["asc", "desc"] = "desc",
     page: int = Query(default=1, ge=1),
@@ -197,6 +332,12 @@ def get_results(
         max_downloads=max_downloads,
         min_likes=min_likes,
         max_likes=max_likes,
+        note_role=note_role,
+        note_category=note_category,
+        note_model_type=note_model_type,
+        note_text=note_text,
+        min_ranking=min_ranking,
+        max_ranking=max_ranking,
         sort_by=sort_by,
         sort_dir=sort_dir,
         page=page,
@@ -220,7 +361,6 @@ def export_full(
     fmt: Literal["csv", "json"] = "json",
 ) -> FileResponse:
     rows = _get_cached_rows(cache_key)
-
     return _export_response(rows, fmt, "hf_export_full", background_tasks)
 
 
@@ -236,13 +376,18 @@ def export_filtered(
     max_downloads: int | None = Query(default=None, ge=0),
     min_likes: int | None = Query(default=None, ge=0),
     max_likes: int | None = Query(default=None, ge=0),
+    note_role: str | None = None,
+    note_category: str | None = None,
+    note_model_type: str | None = None,
+    note_text: str | None = None,
+    min_ranking: int | None = Query(default=None, ge=1, le=10),
+    max_ranking: int | None = Query(default=None, ge=1, le=10),
     sort_by: str = Query(default="downloads"),
     sort_dir: Literal["asc", "desc"] = "desc",
 ) -> FileResponse:
     rows = _get_cached_rows(cache_key)
 
-    filtered_rows = filter_rows(
-        rows,
+    state = TableState(
         task=task,
         author=author,
         library=library,
@@ -250,7 +395,26 @@ def export_filtered(
         max_downloads=max_downloads,
         min_likes=min_likes,
         max_likes=max_likes,
+        note_role=note_role,
+        note_category=note_category,
+        note_model_type=note_model_type,
+        note_text=note_text,
+        min_ranking=min_ranking,
+        max_ranking=max_ranking,
+        sort_by=sort_by,
+        sort_dir=sort_dir,
     )
-    sorted_rows = sort_rows(filtered_rows, sort_by, sort_dir)
+    filtered_rows = filter_rows(
+        rows,
+        task=state.task,
+        author=state.author,
+        library=state.library,
+        min_downloads=state.min_downloads,
+        max_downloads=state.max_downloads,
+        min_likes=state.min_likes,
+        max_likes=state.max_likes,
+    )
+    note_filtered_rows = _filter_rows_by_notes(filtered_rows, state)
+    sorted_rows = sort_rows(note_filtered_rows, sort_by, sort_dir)
 
     return _export_response(sorted_rows, fmt, "hf_export_filtered", background_tasks)

@@ -23,5 +23,8 @@ test.csv
 # Docker files
 docker-compose.override.yml
 
+# Local app storage
+storage/
+
 # storage for Hugging Face Hub exports
 exports/

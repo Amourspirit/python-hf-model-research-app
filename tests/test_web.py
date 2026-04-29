@@ -1,4 +1,6 @@
+import json
 import time
+from pathlib import Path
 
 from fastapi.testclient import TestClient
 
@@ -159,3 +161,159 @@ def test_reset_single_cache_key(monkeypatch):
     second_result = client.get("/api/results", params={"cache_key": search_two["cacheKey"]})
     assert first_result.status_code == 400
     assert second_result.status_code == 200
+
+
+def test_note_options_endpoint(monkeypatch, tmp_path):
+    monkeypatch.setenv("HF_EXPORTER_DB_PATH", str(tmp_path / "notes.db"))
+    client = TestClient(web.app)
+
+    response = client.get("/api/notes/options")
+    assert response.status_code == 200
+    body = response.json()
+    assert "main" in body["roles"]
+    assert "llm-stack" in body["categories"]
+    assert "GGUF" in body["modelTypes"]
+
+
+def test_create_and_list_notes(monkeypatch, tmp_path):
+    monkeypatch.setenv("HF_EXPORTER_DB_PATH", str(tmp_path / "notes.db"))
+    client = TestClient(web.app)
+
+    create_response = client.post(
+        "/api/notes/org/a-model",
+        json={
+            "role": "main",
+            "category": "llm-stack",
+            "model_type": "GGUF",
+            "ranking": 8,
+            "note_text": "Strong local inference candidate.",
+            "pros": "Fast quantized runtime",
+            "cons": "Lower context window",
+            "context_text": "Primary chat model for desktop stack",
+        },
+    )
+    assert create_response.status_code == 201
+    created = create_response.json()
+    assert created["item"]["modelId"] == "org/a-model"
+    assert created["summary"]["note_count"] == 1
+    assert created["summary"]["average_ranking"] == 8.0
+
+    list_response = client.get("/api/notes/org/a-model")
+    assert list_response.status_code == 200
+    payload = list_response.json()
+    assert len(payload["items"]) == 1
+    assert payload["items"][0]["role"] == "main"
+    assert payload["items"][0]["category"] == "llm-stack"
+    assert payload["items"][0]["modelType"] == "GGUF"
+
+
+def test_create_note_requires_content(monkeypatch, tmp_path):
+    monkeypatch.setenv("HF_EXPORTER_DB_PATH", str(tmp_path / "notes.db"))
+    client = TestClient(web.app)
+
+    response = client.post(
+        "/api/notes/org/a-model",
+        json={
+            "role": "main",
+            "category": "llm-stack",
+            "model_type": "GGUF",
+            "ranking": 7,
+            "note_text": "",
+            "pros": "",
+            "cons": "",
+            "context_text": "",
+        },
+    )
+    assert response.status_code == 422
+
+
+def test_note_filters_affect_results(monkeypatch, tmp_path):
+    monkeypatch.setenv("HF_EXPORTER_DB_PATH", str(tmp_path / "notes.db"))
+    monkeypatch.setattr(web, "query_models", lambda query, task=None, author=None, library=None: SAMPLE_ROWS)
+    client = TestClient(web.app)
+
+    search = client.post("/api/search", json={"query": "llama"})
+    cache_key = search.json()["cacheKey"]
+
+    client.post(
+        "/api/notes/org/a-model",
+        json={
+            "role": "main",
+            "category": "llm-stack",
+            "model_type": "GGUF",
+            "ranking": 9,
+            "note_text": "Primary stack candidate.",
+            "pros": "Reliable",
+            "cons": "",
+            "context_text": "",
+        },
+    )
+    client.post(
+        "/api/notes/org/b-model",
+        json={
+            "role": "candidate",
+            "category": "image-generation",
+            "model_type": "Transformers",
+            "ranking": 4,
+            "note_text": "Only for experiments.",
+            "pros": "",
+            "cons": "Weak quality",
+            "context_text": "",
+        },
+    )
+
+    filtered = client.get(
+        "/api/results",
+        params={
+            "cache_key": cache_key,
+            "note_role": "main",
+            "min_ranking": 8,
+        },
+    )
+    assert filtered.status_code == 200
+    body = filtered.json()
+    assert body["meta"]["totalFiltered"] == 1
+    assert body["items"][0]["modelId"] == "org/a-model"
+    assert body["items"][0]["note_count"] == 1
+
+
+def test_export_json_includes_notes_and_csv_stays_flat(monkeypatch, tmp_path):
+    monkeypatch.setenv("HF_EXPORTER_DB_PATH", str(tmp_path / "notes.db"))
+    monkeypatch.setattr(web, "query_models", lambda query, task=None, author=None, library=None: SAMPLE_ROWS)
+    client = TestClient(web.app)
+
+    search = client.post("/api/search", json={"query": "llama"})
+    cache_key = search.json()["cacheKey"]
+
+    client.post(
+        "/api/notes/org/a-model",
+        json={
+            "role": "main",
+            "category": "llm-stack",
+            "model_type": "MLX",
+            "ranking": 10,
+            "note_text": "Best fit for local Apple Silicon.",
+            "pros": "Excellent MLX support",
+            "cons": "",
+            "context_text": "Laptop deployment",
+        },
+    )
+
+    json_export = client.get("/api/export/full", params={"cache_key": cache_key, "fmt": "json"})
+    assert json_export.status_code == 200
+    payload = json.loads(json_export.text)
+    assert payload[0]["note_count"] >= 1
+    assert isinstance(payload[0]["notes"], list)
+
+    csv_export = client.get("/api/export/full", params={"cache_key": cache_key, "fmt": "csv"})
+    assert csv_export.status_code == 200
+    assert "notes" not in csv_export.text.splitlines()[0]
+    assert "note_count" in csv_export.text.splitlines()[0]
+
+
+def test_database_path_defaults_to_storage_directory(monkeypatch):
+    monkeypatch.delenv("HF_EXPORTER_DB_PATH", raising=False)
+    database_path = web.get_database_path()
+    assert isinstance(database_path, Path)
+    assert database_path.name == "hf_exporter.db"
+    assert database_path.parent.name == "storage"

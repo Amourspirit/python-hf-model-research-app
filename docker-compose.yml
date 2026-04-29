@@ -3,8 +3,10 @@ services:
     build: .
     environment:
       - HF_TOKEN=${HF_TOKEN:-}
+      - HF_EXPORTER_DB_PATH=/storage/hf_exporter.db
     volumes:
       - ./exports:/output
+      - ./storage:/storage
     stdin_open: true
     tty: true
     entrypoint: ["/bin/bash"]
@@ -14,17 +16,21 @@ services:
     build: .
     environment:
       - HF_TOKEN=${HF_TOKEN:-}
+      - HF_EXPORTER_DB_PATH=/storage/hf_exporter.db
     volumes:
       - ./exports:/output
+      - ./storage:/storage
     command: ["--help"]
 
   hf-exporter-web:
     build: .
     environment:
       - HF_TOKEN=${HF_TOKEN:-}
+      - HF_EXPORTER_DB_PATH=/storage/hf_exporter.db
     ports:
       - "8111:8000"
     volumes:
       - ./exports:/output
+      - ./storage:/storage
     entrypoint: ["uv", "run", "uvicorn"]
     command: ["hf_exporter.web:app", "--host", "0.0.0.0", "--port", "8000"]

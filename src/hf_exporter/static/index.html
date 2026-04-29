@@ -178,7 +178,7 @@
       letter-spacing: 0.5px;
     }
 
-    input, select {
+    input, select, textarea {
       padding: 10px 12px;
       border: 1px solid var(--border);
       border-radius: 8px;
@@ -189,11 +189,11 @@
       transition: var(--transition);
     }
 
-    input::placeholder, select::placeholder {
+    input::placeholder, select::placeholder, textarea::placeholder {
       color: var(--text-tertiary);
     }
 
-    input:focus, select:focus {
+    input:focus, select:focus, textarea:focus {
       outline: none;
       border-color: var(--accent-primary);
       box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
@@ -201,7 +201,8 @@
     }
 
     html[data-theme="dark"] input:focus,
-    html[data-theme="dark"] select:focus {
+    html[data-theme="dark"] select:focus,
+    html[data-theme="dark"] textarea:focus {
       box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
     }
 
@@ -363,6 +364,43 @@
       align-items: center;
       justify-content: space-between;
       gap: 10px;
+    }
+
+    .model-cell-main {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-width: 0;
+    }
+
+    .model-id-text {
+      word-break: break-word;
+    }
+
+    .note-meta {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .note-badge,
+    .ranking-badge,
+    .note-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      border-radius: 999px;
+      padding: 3px 8px;
+      font-size: 0.74rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      background: var(--bg-tertiary);
+      color: var(--text-secondary);
+    }
+
+    .ranking-badge {
+      background: rgba(16, 185, 129, 0.12);
+      color: var(--success);
     }
 
     tbody tr {
@@ -580,6 +618,111 @@
       flex: 1;
     }
 
+    .panel-section {
+      margin-top: 28px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border);
+    }
+
+    .panel-section-title {
+      font-size: 0.86rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      margin-bottom: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .panel-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .panel-grid .field {
+      gap: 8px;
+    }
+
+    .panel-grid .field.full {
+      grid-column: 1 / -1;
+    }
+
+    .panel-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+
+    .panel-note-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .panel-note-card {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+      background: var(--bg-secondary);
+    }
+
+    .panel-note-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: flex-start;
+      margin-bottom: 10px;
+    }
+
+    .panel-note-tags {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .panel-note-created {
+      font-size: 0.78rem;
+      color: var(--text-tertiary);
+      white-space: nowrap;
+    }
+
+    .panel-note-block {
+      margin-top: 8px;
+    }
+
+    .panel-note-block strong {
+      display: block;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-tertiary);
+      margin-bottom: 4px;
+    }
+
+    .panel-note-block p {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .panel-helper-text {
+      font-size: 0.8rem;
+      color: var(--text-tertiary);
+      margin-top: 6px;
+    }
+
+    .panel-empty {
+      color: var(--text-tertiary);
+      font-size: 0.9rem;
+      padding: 14px;
+      border: 1px dashed var(--border);
+      border-radius: 10px;
+      background: var(--bg-secondary);
+    }
+
     .panel-field {
       margin-bottom: 20px;
     }
@@ -637,6 +780,12 @@
       line-height: 1;
       transition: var(--transition);
       flex-shrink: 0;
+    }
+
+    @media (max-width: 640px) {
+      .panel-grid {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
@@ -696,6 +845,31 @@
             <option value="50">50 items</option>
             <option value="100">100 items</option>
           </select>
+        </div>
+
+        <div class="field">
+          <label for="note-role">Note Role</label>
+          <select id="note-role"></select>
+        </div>
+        <div class="field">
+          <label for="note-category">Note Category</label>
+          <select id="note-category"></select>
+        </div>
+        <div class="field">
+          <label for="note-model-type">Model Type</label>
+          <select id="note-model-type"></select>
+        </div>
+        <div class="field">
+          <label for="min-ranking">Min Ranking</label>
+          <input id="min-ranking" type="number" min="1" max="10" placeholder="1" />
+        </div>
+        <div class="field">
+          <label for="max-ranking">Max Ranking</label>
+          <input id="max-ranking" type="number" min="1" max="10" placeholder="10" />
+        </div>
+        <div class="field">
+          <label for="note-text">Note Text</label>
+          <input id="note-text" placeholder="search note content" />
         </div>
       </div>
 
@@ -757,7 +931,6 @@
   </div>
 
   <script>
-    // Theme management
     function initTheme() {
       const savedTheme = localStorage.getItem("theme") || "light";
       document.documentElement.setAttribute("data-theme", savedTheme);
@@ -803,6 +976,14 @@
       maxDownloads: "",
       minLikes: "",
       maxLikes: "",
+      noteRole: "",
+      noteCategory: "",
+      noteModelType: "",
+      noteText: "",
+      minRanking: "",
+      maxRanking: "",
+      noteOptions: null,
+      activeModel: null,
     };
 
     let searchController = null;
@@ -818,10 +999,17 @@
     const maxDownloadsInput = document.getElementById("max-downloads");
     const minLikesInput = document.getElementById("min-likes");
     const maxLikesInput = document.getElementById("max-likes");
+    const noteRoleInput = document.getElementById("note-role");
+    const noteCategoryInput = document.getElementById("note-category");
+    const noteModelTypeInput = document.getElementById("note-model-type");
+    const minRankingInput = document.getElementById("min-ranking");
+    const maxRankingInput = document.getElementById("max-ranking");
+    const noteTextInput = document.getElementById("note-text");
     const messageEl = document.getElementById("message");
     const errorEl = document.getElementById("error");
     const statusEl = document.getElementById("status");
     const resultsBody = document.getElementById("results-body");
+    const panelBody = document.getElementById("panel-body");
 
     const managedButtons = [
       "search-btn",
@@ -860,6 +1048,45 @@
       }
     }
 
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
+    }
+
+    function buildSelectOptions(values, selectedValue, placeholder) {
+      const options = [`<option value="">${escapeHtml(placeholder)}</option>`];
+      for (const value of values || []) {
+        const selected = value === selectedValue ? " selected" : "";
+        options.push(`<option value="${escapeHtml(value)}"${selected}>${escapeHtml(value)}</option>`);
+      }
+      return options.join("");
+    }
+
+    function populateFilterSelect(selectEl, values, selectedValue, placeholder) {
+      selectEl.innerHTML = buildSelectOptions(values, selectedValue, placeholder);
+    }
+
+    async function ensureNoteOptionsLoaded() {
+      if (state.noteOptions) {
+        return state.noteOptions;
+      }
+
+      const response = await fetch("/api/notes/options");
+      if (!response.ok) {
+        throw new Error("Failed to load note options");
+      }
+
+      state.noteOptions = await response.json();
+      populateFilterSelect(noteRoleInput, state.noteOptions.roles, state.noteRole, "Any role");
+      populateFilterSelect(noteCategoryInput, state.noteOptions.categories, state.noteCategory, "Any category");
+      populateFilterSelect(noteModelTypeInput, state.noteOptions.modelTypes, state.noteModelType, "Any model type");
+      return state.noteOptions;
+    }
+
     function syncStateFromInputs() {
       state.task = taskInput.value.trim();
       state.author = authorInput.value.trim();
@@ -869,6 +1096,12 @@
       state.maxDownloads = maxDownloadsInput.value;
       state.minLikes = minLikesInput.value;
       state.maxLikes = maxLikesInput.value;
+      state.noteRole = noteRoleInput.value;
+      state.noteCategory = noteCategoryInput.value;
+      state.noteModelType = noteModelTypeInput.value;
+      state.minRanking = minRankingInput.value;
+      state.maxRanking = maxRankingInput.value;
+      state.noteText = noteTextInput.value.trim();
     }
 
     function applyStateToInputs() {
@@ -880,6 +1113,15 @@
       maxDownloadsInput.value = state.maxDownloads;
       minLikesInput.value = state.minLikes;
       maxLikesInput.value = state.maxLikes;
+      minRankingInput.value = state.minRanking;
+      maxRankingInput.value = state.maxRanking;
+      noteTextInput.value = state.noteText;
+
+      if (state.noteOptions) {
+        populateFilterSelect(noteRoleInput, state.noteOptions.roles, state.noteRole, "Any role");
+        populateFilterSelect(noteCategoryInput, state.noteOptions.categories, state.noteCategory, "Any category");
+        populateFilterSelect(noteModelTypeInput, state.noteOptions.modelTypes, state.noteModelType, "Any model type");
+      }
     }
 
     function persistState() {
@@ -892,6 +1134,12 @@
         maxDownloads: state.maxDownloads,
         minLikes: state.minLikes,
         maxLikes: state.maxLikes,
+        noteRole: state.noteRole,
+        noteCategory: state.noteCategory,
+        noteModelType: state.noteModelType,
+        minRanking: state.minRanking,
+        maxRanking: state.maxRanking,
+        noteText: state.noteText,
         pageSize: String(state.pageSize),
         sortBy: state.sortBy,
         sortDir: state.sortDir,
@@ -938,14 +1186,18 @@
       state.maxDownloads = getValue("maxDownloads");
       state.minLikes = getValue("minLikes");
       state.maxLikes = getValue("maxLikes");
+      state.noteRole = getValue("noteRole");
+      state.noteCategory = getValue("noteCategory");
+      state.noteModelType = getValue("noteModelType");
+      state.minRanking = getValue("minRanking");
+      state.maxRanking = getValue("maxRanking");
+      state.noteText = getValue("noteText");
       state.pageSize = Number(getValue("pageSize", "25")) || 25;
       state.sortBy = getValue("sortBy", "downloads");
       state.sortDir = getValue("sortDir", "desc") === "asc" ? "asc" : "desc";
       state.page = Number(getValue("page", "1")) || 1;
       state.cacheKey = getValue("cacheKey");
       state.hasData = Boolean(state.cacheKey);
-
-      applyStateToInputs();
     }
 
     function toQueryParams(includePaging = true) {
@@ -960,6 +1212,12 @@
       if (state.maxDownloads) params.set("max_downloads", state.maxDownloads);
       if (state.minLikes) params.set("min_likes", state.minLikes);
       if (state.maxLikes) params.set("max_likes", state.maxLikes);
+      if (state.noteRole) params.set("note_role", state.noteRole);
+      if (state.noteCategory) params.set("note_category", state.noteCategory);
+      if (state.noteModelType) params.set("note_model_type", state.noteModelType);
+      if (state.minRanking) params.set("min_ranking", state.minRanking);
+      if (state.maxRanking) params.set("max_ranking", state.maxRanking);
+      if (state.noteText) params.set("note_text", state.noteText);
 
       params.set("sort_by", state.sortBy);
       params.set("sort_dir", state.sortDir);
@@ -972,18 +1230,81 @@
       return params;
     }
 
-    function openDetailPanel(item) {
-      const panelBody = document.getElementById("panel-body");
-      const hfUrl = item.modelId ? `https://huggingface.co/${item.modelId}` : null;
+    function formatAverageRanking(value) {
+      if (value === null || value === undefined || Number.isNaN(Number(value))) {
+        return "-";
+      }
+      return Number(value).toFixed(2);
+    }
+
+    function formatNoteDate(value) {
+      if (!value) {
+        return "";
+      }
+      const parsed = new Date(value);
+      if (Number.isNaN(parsed.getTime())) {
+        return escapeHtml(value);
+      }
+      return escapeHtml(parsed.toLocaleString());
+    }
+
+    function renderNoteBlocks(note) {
+      const blocks = [
+        ["Notes", note.noteText],
+        ["Pros", note.pros],
+        ["Cons", note.cons],
+        ["Context", note.contextText],
+      ];
+
+      return blocks
+        .filter(([, value]) => value)
+        .map(([label, value]) => `
+          <div class="panel-note-block">
+            <strong>${escapeHtml(label)}</strong>
+            <p>${escapeHtml(value)}</p>
+          </div>
+        `)
+        .join("");
+    }
+
+    function renderNotesList(notes) {
+      if (!notes.length) {
+        return '<div class="panel-empty">No notes recorded yet for this model.</div>';
+      }
+
+      return `
+        <div class="panel-note-list">
+          ${notes.map((note) => `
+            <div class="panel-note-card">
+              <div class="panel-note-header">
+                <div class="panel-note-tags">
+                  <span class="note-tag">${escapeHtml(note.role)}</span>
+                  <span class="note-tag">${escapeHtml(note.category)}</span>
+                  <span class="note-tag">${escapeHtml(note.modelType)}</span>
+                  <span class="ranking-badge">rank ${escapeHtml(note.ranking)}</span>
+                </div>
+                <div class="panel-note-created">${formatNoteDate(note.createdAt)}</div>
+              </div>
+              ${renderNoteBlocks(note)}
+            </div>
+          `).join("")}
+        </div>
+      `;
+    }
+
+    function renderDetailPanel(item, notesPayload = { items: [], summary: {} }, loading = false) {
+      const hfUrl = item.modelId ? `https://huggingface.co/${encodeURIComponent(item.modelId).replaceAll("%2F", "/")}` : null;
+      const summary = notesPayload.summary || {};
+      const options = state.noteOptions || { roles: [], categories: [], modelTypes: [] };
 
       panelBody.innerHTML = `
         <div class="panel-field">
           <div class="panel-field-label">Model ID</div>
-          <div class="panel-field-value">${item.modelId || "-"}</div>
+          <div class="panel-field-value">${escapeHtml(item.modelId || "-")}</div>
         </div>
         <div class="panel-field">
           <div class="panel-field-label">Author</div>
-          <div class="panel-field-value">${item.author || "-"}</div>
+          <div class="panel-field-value">${escapeHtml(item.author || "-")}</div>
         </div>
         <div class="panel-field">
           <div class="panel-field-label">Downloads</div>
@@ -995,24 +1316,142 @@
         </div>
         <div class="panel-field">
           <div class="panel-field-label">Task</div>
-          <div class="panel-field-value">${item.pipeline_tag || "-"}</div>
+          <div class="panel-field-value">${escapeHtml(item.pipeline_tag || "-")}</div>
         </div>
         <div class="panel-field">
           <div class="panel-field-label">Library</div>
-          <div class="panel-field-value">${item.library_name || "-"}</div>
+          <div class="panel-field-value">${escapeHtml(item.library_name || "-")}</div>
+        </div>
+        <div class="panel-field">
+          <div class="panel-field-label">Note Summary</div>
+          <div class="note-meta">
+            <span class="note-badge">${escapeHtml(summary.note_count ?? item.note_count ?? 0)} notes</span>
+            <span class="ranking-badge">avg ${escapeHtml(formatAverageRanking(summary.average_ranking ?? item.average_ranking))}</span>
+          </div>
         </div>
         ${hfUrl ? `<a href="${hfUrl}" target="_blank" rel="noopener noreferrer" class="panel-hf-link">View on Hugging Face <span>↗</span></a>` : ""}
+
+        <div class="panel-section">
+          <div class="panel-section-title">Add Evaluation Entry</div>
+          <div class="panel-grid">
+            <div class="field">
+              <label for="detail-role">Role</label>
+              <select id="detail-role">${buildSelectOptions(options.roles, options.roles[0] || "", "Select role")}</select>
+            </div>
+            <div class="field">
+              <label for="detail-category">Category</label>
+              <select id="detail-category">${buildSelectOptions(options.categories, options.categories[0] || "", "Select category")}</select>
+            </div>
+            <div class="field">
+              <label for="detail-model-type">Model Type</label>
+              <select id="detail-model-type">${buildSelectOptions(options.modelTypes, options.modelTypes[0] || "", "Select model type")}</select>
+            </div>
+            <div class="field">
+              <label for="detail-ranking">Ranking</label>
+              <input id="detail-ranking" type="number" min="1" max="10" value="7" />
+            </div>
+            <div class="field full">
+              <label for="detail-note-text">Notes</label>
+              <textarea id="detail-note-text" rows="4" placeholder="What makes this model a fit for this role?"></textarea>
+            </div>
+            <div class="field full">
+              <label for="detail-pros">Pros</label>
+              <textarea id="detail-pros" rows="3" placeholder="Strengths, wins, or standout behavior"></textarea>
+            </div>
+            <div class="field full">
+              <label for="detail-cons">Cons</label>
+              <textarea id="detail-cons" rows="3" placeholder="Weaknesses, caveats, or blockers"></textarea>
+            </div>
+            <div class="field full">
+              <label for="detail-context-text">Context / Use Case</label>
+              <textarea id="detail-context-text" rows="3" placeholder="Deployment target, benchmark setup, or stack context"></textarea>
+            </div>
+          </div>
+          <div class="panel-helper-text">Entries are append-only. Use a new record for each evaluation pass, role, or category change.</div>
+          <div class="panel-actions">
+            <button class="primary" id="save-note-btn">Save Entry</button>
+          </div>
+        </div>
+
+        <div class="panel-section">
+          <div class="panel-section-title">Entry History</div>
+          ${loading ? '<div class="panel-empty">Loading notes...</div>' : renderNotesList(notesPayload.items || [])}
+        </div>
       `;
 
+      const saveButton = document.getElementById("save-note-btn");
+      if (saveButton) {
+        saveButton.addEventListener("click", async () => {
+          try {
+            await saveNote(item);
+          } catch (error) {
+            setError(error.message);
+          }
+        });
+      }
+    }
+
+    async function openDetailPanel(item) {
+      state.activeModel = item;
       document.getElementById("detail-panel").classList.add("open");
       document.getElementById("panel-backdrop").classList.add("open");
       document.body.style.overflow = "hidden";
+
+      await ensureNoteOptionsLoaded();
+      renderDetailPanel(item, { items: [], summary: { note_count: item.note_count, average_ranking: item.average_ranking } }, true);
+
+      const response = await fetch(`/api/notes/${encodeURIComponent(item.modelId).replaceAll("%2F", "/")}`);
+      if (!response.ok) {
+        throw new Error("Failed to load notes for the selected model");
+      }
+
+      const payload = await response.json();
+      if (state.activeModel?.modelId === item.modelId) {
+        renderDetailPanel(item, payload, false);
+      }
     }
 
     function closeDetailPanel() {
+      state.activeModel = null;
       document.getElementById("detail-panel").classList.remove("open");
       document.getElementById("panel-backdrop").classList.remove("open");
       document.body.style.overflow = "";
+    }
+
+    async function saveNote(item) {
+      const payload = {
+        role: document.getElementById("detail-role").value,
+        category: document.getElementById("detail-category").value,
+        model_type: document.getElementById("detail-model-type").value,
+        ranking: Number(document.getElementById("detail-ranking").value || 0),
+        note_text: document.getElementById("detail-note-text").value,
+        pros: document.getElementById("detail-pros").value,
+        cons: document.getElementById("detail-cons").value,
+        context_text: document.getElementById("detail-context-text").value,
+      };
+
+      const response = await fetch(`/api/notes/${encodeURIComponent(item.modelId).replaceAll("%2F", "/")}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorBody = await response.json();
+        throw new Error(errorBody.detail || "Failed to save note entry");
+      }
+
+      const result = await response.json();
+      renderDetailPanel(item, result, false);
+      setMessage("Note entry saved.");
+
+      if (state.hasData && state.cacheKey) {
+        try {
+          await fetchResults();
+        } catch {
+          // Keep panel usable even if the background refresh fails.
+        }
+      }
     }
 
     function renderRows(items) {
@@ -1029,15 +1468,26 @@
         const row = document.createElement("tr");
         row.className = "clickable-row";
         row.innerHTML = `
-          <td class="model-cell"><span>${item.modelId || "-"}</span><span class="row-indicator" aria-hidden="true" title="View details">›</span></td>
-          <td>${item.author || "-"}</td>
+          <td class="model-cell">
+            <div class="model-cell-main">
+              <span class="model-id-text">${escapeHtml(item.modelId || "-")}</span>
+              ${(item.note_count ?? 0) > 0 ? `
+                <div class="note-meta">
+                  <span class="note-badge">${escapeHtml(item.note_count)} notes</span>
+                  <span class="ranking-badge">avg ${escapeHtml(formatAverageRanking(item.average_ranking))}</span>
+                </div>
+              ` : ""}
+            </div>
+            <span class="row-indicator" aria-hidden="true" title="View details">›</span>
+          </td>
+          <td>${escapeHtml(item.author || "-")}</td>
           <td>${(item.downloads ?? 0).toLocaleString()}</td>
           <td>${(item.likes ?? 0).toLocaleString()}</td>
-          <td>${item.pipeline_tag || "-"}</td>
-          <td>${item.library_name || "-"}</td>
+          <td>${escapeHtml(item.pipeline_tag || "-")}</td>
+          <td>${escapeHtml(item.library_name || "-")}</td>
         `;
         row.addEventListener("click", () => {
-          openDetailPanel(item);
+          openDetailPanel(item).catch((error) => setError(error.message));
         });
         resultsBody.appendChild(row);
       }
@@ -1168,6 +1618,12 @@
       state.maxDownloads = "";
       state.minLikes = "";
       state.maxLikes = "";
+      state.noteRole = "";
+      state.noteCategory = "";
+      state.noteModelType = "";
+      state.minRanking = "";
+      state.maxRanking = "";
+      state.noteText = "";
       state.pageSize = 25;
 
       queryInput.value = "";
@@ -1180,6 +1636,7 @@
 
       localStorage.removeItem(STORAGE_KEY);
       history.replaceState(null, "", window.location.pathname);
+      closeDetailPanel();
     }
 
     function exportData(scope, fmt) {
@@ -1294,14 +1751,23 @@
 
     hydrateState();
 
-    if (state.cacheKey && queryInput.value.trim()) {
-      fetchResults().catch(() => {
-        state.hasData = false;
-        state.cacheKey = "";
-        setMessage("Saved filters restored. Run search to refresh results.");
-        persistState();
-      });
-    }
+    (async () => {
+      try {
+        await ensureNoteOptionsLoaded();
+        applyStateToInputs();
+      } catch (error) {
+        setError(error.message);
+      }
+
+      if (state.cacheKey && queryInput.value.trim()) {
+        fetchResults().catch(() => {
+          state.hasData = false;
+          state.cacheKey = "";
+          setMessage("Saved filters restored. Run search to refresh results.");
+          persistState();
+        });
+      }
+    })();
   </script>
 </body>
 </html>

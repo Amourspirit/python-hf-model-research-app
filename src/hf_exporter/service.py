@@ -135,11 +135,17 @@ def paginate_rows(rows: list[dict[str, Any]], page: int, page_size: int) -> tupl
 
 
 def export_rows(rows: list[dict[str, Any]], output: str, fmt: str) -> None:
-    dataframe = pd.DataFrame(rows)
     format_name = fmt.lower()
 
     if format_name == "csv":
+        csv_rows = []
+        for row in rows:
+            csv_row = dict(row)
+            csv_row.pop("notes", None)
+            csv_rows.append(csv_row)
+        dataframe = pd.DataFrame(csv_rows)
         dataframe.to_csv(output, index=False)
         return
 
+    dataframe = pd.DataFrame(rows)
     dataframe.to_json(output, orient="records", indent=2)
