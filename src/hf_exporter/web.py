@@ -36,11 +36,13 @@ class SearchRequest(BaseModel):
     query: str = Field(min_length=1)
     task: str | None = None
     author: str | None = None
+    library: str | None = None
 
 
 class TableState(BaseModel):
     task: str | None = None
     author: str | None = None
+    library: str | None = None
     min_downloads: int | None = None
     max_downloads: int | None = None
     min_likes: int | None = None
@@ -73,6 +75,7 @@ def _build_table_payload(rows: list[dict], state: TableState) -> dict:
         rows,
         task=state.task,
         author=state.author,
+        library=state.library,
         min_downloads=state.min_downloads,
         max_downloads=state.max_downloads,
         min_likes=state.min_likes,
@@ -125,10 +128,10 @@ def index() -> FileResponse:
 
 @app.post("/api/search")
 def search_models(payload: SearchRequest) -> dict:
-    rows = query_models(payload.query, payload.task, payload.author)
+    rows = query_models(payload.query, payload.task, payload.author, payload.library)
     _set_cache(rows, payload.query)
 
-    state = TableState(task=payload.task, author=payload.author, page=1)
+    state = TableState(task=payload.task, author=payload.author, library=payload.library, page=1)
     return _build_table_payload(rows, state)
 
 
@@ -136,6 +139,7 @@ def search_models(payload: SearchRequest) -> dict:
 def get_results(
     task: str | None = None,
     author: str | None = None,
+    library: str | None = None,
     min_downloads: int | None = Query(default=None, ge=0),
     max_downloads: int | None = Query(default=None, ge=0),
     min_likes: int | None = Query(default=None, ge=0),
@@ -155,6 +159,7 @@ def get_results(
     state = TableState(
         task=task,
         author=author,
+        library=library,
         min_downloads=min_downloads,
         max_downloads=max_downloads,
         min_likes=min_likes,
@@ -191,6 +196,7 @@ def export_filtered(
     fmt: Literal["csv", "json"] = "json",
     task: str | None = None,
     author: str | None = None,
+    library: str | None = None,
     min_downloads: int | None = Query(default=None, ge=0),
     max_downloads: int | None = Query(default=None, ge=0),
     min_likes: int | None = Query(default=None, ge=0),
@@ -206,6 +212,7 @@ def export_filtered(
         rows,
         task=task,
         author=author,
+        library=library,
         min_downloads=min_downloads,
         max_downloads=max_downloads,
         min_likes=min_likes,

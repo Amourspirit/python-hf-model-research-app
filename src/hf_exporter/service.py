@@ -39,12 +39,19 @@ def get_api() -> HfApi:
     return _build_api(token)
 
 
-def query_models(query: str, task: str | None = None, author: str | None = None) -> list[dict[str, Any]]:
+def query_models(
+    query: str,
+    task: str | None = None,
+    author: str | None = None,
+    library: str | None = None,
+) -> list[dict[str, Any]]:
     filters: dict[str, str] = {}
     if task:
         filters["task"] = task
     if author:
         filters["author"] = author
+    if library:
+        filters["library"] = library
 
     model_filter = ModelFilter(**filters) if ModelFilter and filters else (filters or None)
     models = list(get_api().list_models(search=query, filter=model_filter))
@@ -66,6 +73,7 @@ def filter_rows(
     rows: list[dict[str, Any]],
     task: str | None = None,
     author: str | None = None,
+    library: str | None = None,
     min_downloads: int | None = None,
     max_downloads: int | None = None,
     min_likes: int | None = None,
@@ -80,6 +88,10 @@ def filter_rows(
     if author:
         author_text = author.strip().lower()
         filtered = [r for r in filtered if author_text in (str(r.get("author") or "").lower())]
+
+    if library:
+        library_text = library.strip().lower()
+        filtered = [r for r in filtered if library_text in (str(r.get("library_name") or "").lower())]
 
     if min_downloads is not None:
         filtered = [r for r in filtered if int(r.get("downloads") or 0) >= min_downloads]

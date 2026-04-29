@@ -107,7 +107,7 @@ What the web app supports:
 - Live Hugging Face search by `query` (plus optional `task` and `author`).
 - Server-side cached result set after each search.
 - Sortable table columns.
-- Server-side filtering by `task`, `author`, `min/max downloads`, and `min/max likes`.
+- Server-side filtering by `task`, `author`, `library`, `min/max downloads`, and `min/max likes`.
 - Pagination with default page size of `25`.
 - Export full search result set as JSON or CSV.
 - Export current filtered result set as JSON or CSV.

@@ -18,7 +18,7 @@ SAMPLE_ROWS = [
         "downloads": 30,
         "likes": 24,
         "pipeline_tag": "text-classification",
-        "library_name": "transformers",
+        "library_name": "keras",
     },
     {
         "modelId": "alice/c-model",
@@ -26,13 +26,13 @@ SAMPLE_ROWS = [
         "downloads": 310,
         "likes": 16,
         "pipeline_tag": "text-generation",
-        "library_name": "transformers",
+        "library_name": "diffusers",
     },
 ]
 
 
 def test_search_results_and_pagination(monkeypatch):
-    monkeypatch.setattr(web, "query_models", lambda query, task=None, author=None: SAMPLE_ROWS)
+    monkeypatch.setattr(web, "query_models", lambda query, task=None, author=None, library=None: SAMPLE_ROWS)
     client = TestClient(web.app)
 
     response = client.post("/api/search", json={"query": "llama"})
@@ -52,7 +52,7 @@ def test_search_results_and_pagination(monkeypatch):
 
 
 def test_filtered_export_csv(monkeypatch):
-    monkeypatch.setattr(web, "query_models", lambda query, task=None, author=None: SAMPLE_ROWS)
+    monkeypatch.setattr(web, "query_models", lambda query, task=None, author=None, library=None: SAMPLE_ROWS)
     client = TestClient(web.app)
 
     search = client.post("/api/search", json={"query": "llama"})
@@ -69,8 +69,22 @@ def test_filtered_export_csv(monkeypatch):
     assert "org/b-model" not in text
 
 
+def test_library_filter(monkeypatch):
+    monkeypatch.setattr(web, "query_models", lambda query, task=None, author=None, library=None: SAMPLE_ROWS)
+    client = TestClient(web.app)
+
+    search = client.post("/api/search", json={"query": "model"})
+    assert search.status_code == 200
+
+    filtered = client.get("/api/results", params={"library": "keras"})
+    assert filtered.status_code == 200
+    payload = filtered.json()
+    assert payload["meta"]["totalFiltered"] == 1
+    assert payload["items"][0]["modelId"] == "org/b-model"
+
+
 def test_reset_clears_cache(monkeypatch):
-    monkeypatch.setattr(web, "query_models", lambda query, task=None, author=None: SAMPLE_ROWS)
+    monkeypatch.setattr(web, "query_models", lambda query, task=None, author=None, library=None: SAMPLE_ROWS)
     client = TestClient(web.app)
 
     search = client.post("/api/search", json={"query": "llama"})

@@ -196,6 +196,10 @@
           <input id="author" placeholder="e.g. openai" />
         </div>
         <div class="field">
+          <label for="library">Library</label>
+          <input id="library" placeholder="e.g. transformers" />
+        </div>
+        <div class="field">
           <label for="page-size">Page size</label>
           <select id="page-size">
             <option value="25" selected>25</option>
@@ -276,6 +280,7 @@
       sortDir: "desc",
       task: "",
       author: "",
+      library: "",
       minDownloads: "",
       maxDownloads: "",
       minLikes: "",
@@ -285,6 +290,7 @@
     const queryInput = document.getElementById("query");
     const taskInput = document.getElementById("task");
     const authorInput = document.getElementById("author");
+    const libraryInput = document.getElementById("library");
     const pageSizeInput = document.getElementById("page-size");
     const minDownloadsInput = document.getElementById("min-downloads");
     const maxDownloadsInput = document.getElementById("max-downloads");
@@ -306,6 +312,7 @@
     function syncStateFromInputs() {
       state.task = taskInput.value.trim();
       state.author = authorInput.value.trim();
+      state.library = libraryInput.value.trim();
       state.pageSize = Number(pageSizeInput.value || 25);
       state.minDownloads = minDownloadsInput.value;
       state.maxDownloads = maxDownloadsInput.value;
@@ -318,6 +325,7 @@
 
       if (state.task) params.set("task", state.task);
       if (state.author) params.set("author", state.author);
+      if (state.library) params.set("library", state.library);
       if (state.minDownloads) params.set("min_downloads", state.minDownloads);
       if (state.maxDownloads) params.set("max_downloads", state.maxDownloads);
       if (state.minLikes) params.set("min_likes", state.minLikes);
@@ -400,6 +408,7 @@
           query,
           task: state.task || null,
           author: state.author || null,
+          library: state.library || null,
         }),
       });
 
@@ -426,6 +435,7 @@
       queryInput.value = "";
       taskInput.value = "";
       authorInput.value = "";
+      libraryInput.value = "";
       pageSizeInput.value = "25";
       minDownloadsInput.value = "";
       maxDownloadsInput.value = "";
