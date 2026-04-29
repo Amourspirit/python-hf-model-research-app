@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import os
 import tempfile
+import time
+import uuid
 from pathlib import Path
 from threading import Lock
 from typing import Literal
@@ -25,11 +27,10 @@ INDEX_FILE = STATIC_DIR / "index.html"
 
 app = FastAPI(title="HF Model Exporter Web")
 
+CACHE_TTL_SECONDS = 900
+
 _CACHE_LOCK = Lock()
-_CACHE: dict[str, object] = {
-    "rows": [],
-    "query": None,
-}
+_CACHE: dict[str, dict[str, object]] = {}
 
 
 class SearchRequest(BaseModel):
@@ -53,21 +54,51 @@ class TableState(BaseModel):
     page_size: int = 25
 
 
-def _get_cached_rows() -> list[dict]:
+def _now_epoch() -> float:
+    return time.time()
+
+
+def _purge_expired_cache() -> None:
+    cutoff = _now_epoch() - CACHE_TTL_SECONDS
     with _CACHE_LOCK:
-        return list(_CACHE.get("rows", []))
+        expired_keys = [
+            key for key, entry in _CACHE.items() if float(entry.get("created_at", 0.0)) < cutoff
+        ]
+        for key in expired_keys:
+            _CACHE.pop(key, None)
 
 
-def _set_cache(rows: list[dict], query: str) -> None:
+def _set_cache(rows: list[dict], query: str) -> str:
+    cache_key = str(uuid.uuid4())
     with _CACHE_LOCK:
-        _CACHE["rows"] = rows
-        _CACHE["query"] = query
+        _CACHE[cache_key] = {
+            "rows": rows,
+            "query": query,
+            "created_at": _now_epoch(),
+        }
+    return cache_key
 
 
-def _clear_cache() -> None:
+def _get_cached_rows(cache_key: str) -> list[dict]:
+    if not cache_key:
+        raise HTTPException(status_code=400, detail="cache_key is required.")
+
+    _purge_expired_cache()
     with _CACHE_LOCK:
-        _CACHE["rows"] = []
-        _CACHE["query"] = None
+        entry = _CACHE.get(cache_key)
+
+    if not entry:
+        raise HTTPException(status_code=400, detail="Invalid or expired cache_key. Run a search first.")
+
+    return list(entry.get("rows", []))
+
+
+def _clear_cache(cache_key: str | None = None) -> None:
+    with _CACHE_LOCK:
+        if cache_key:
+            _CACHE.pop(cache_key, None)
+            return
+        _CACHE.clear()
 
 
 def _build_table_payload(rows: list[dict], state: TableState) -> dict:
@@ -128,15 +159,19 @@ def index() -> FileResponse:
 
 @app.post("/api/search")
 def search_models(payload: SearchRequest) -> dict:
+    _purge_expired_cache()
     rows = query_models(payload.query, payload.task, payload.author, payload.library)
-    _set_cache(rows, payload.query)
+    cache_key = _set_cache(rows, payload.query)
 
     state = TableState(task=payload.task, author=payload.author, library=payload.library, page=1)
-    return _build_table_payload(rows, state)
+    payload_data = _build_table_payload(rows, state)
+    payload_data["cacheKey"] = cache_key
+    return payload_data
 
 
 @app.get("/api/results")
 def get_results(
+    cache_key: str = Query(min_length=1),
     task: str | None = None,
     author: str | None = None,
     library: str | None = None,
@@ -149,9 +184,7 @@ def get_results(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=25, ge=1, le=250),
 ) -> dict:
-    rows = _get_cached_rows()
-    if not rows:
-        raise HTTPException(status_code=400, detail="No cached search results. Run a search first.")
+    rows = _get_cached_rows(cache_key)
 
     if sort_by not in MODEL_COLUMNS:
         raise HTTPException(status_code=400, detail=f"Invalid sort_by field: {sort_by}")
@@ -169,23 +202,24 @@ def get_results(
         page=page,
         page_size=page_size,
     )
-    return _build_table_payload(rows, state)
+    payload_data = _build_table_payload(rows, state)
+    payload_data["cacheKey"] = cache_key
+    return payload_data
 
 
 @app.post("/api/reset")
-def reset_results() -> dict:
-    _clear_cache()
+def reset_results(cache_key: str | None = None) -> dict:
+    _clear_cache(cache_key)
     return {"status": "ok"}
 
 
 @app.get("/api/export/full")
 def export_full(
     background_tasks: BackgroundTasks,
+    cache_key: str = Query(min_length=1),
     fmt: Literal["csv", "json"] = "json",
 ) -> FileResponse:
-    rows = _get_cached_rows()
-    if not rows:
-        raise HTTPException(status_code=400, detail="No cached search results. Run a search first.")
+    rows = _get_cached_rows(cache_key)
 
     return _export_response(rows, fmt, "hf_export_full", background_tasks)
 
@@ -193,6 +227,7 @@ def export_full(
 @app.get("/api/export/filtered")
 def export_filtered(
     background_tasks: BackgroundTasks,
+    cache_key: str = Query(min_length=1),
     fmt: Literal["csv", "json"] = "json",
     task: str | None = None,
     author: str | None = None,
@@ -204,9 +239,7 @@ def export_filtered(
     sort_by: str = Query(default="downloads"),
     sort_dir: Literal["asc", "desc"] = "desc",
 ) -> FileResponse:
-    rows = _get_cached_rows()
-    if not rows:
-        raise HTTPException(status_code=400, detail="No cached search results. Run a search first.")
+    rows = _get_cached_rows(cache_key)
 
     filtered_rows = filter_rows(
         rows,

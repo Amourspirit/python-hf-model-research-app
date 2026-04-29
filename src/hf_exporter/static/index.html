@@ -489,6 +489,128 @@
         padding: 8px;
       }
     }
+
+    /* Detail panel */
+    .panel-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.4);
+      z-index: 100;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+    }
+
+    .panel-backdrop.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .detail-panel {
+      position: fixed;
+      top: 0;
+      right: 0;
+      height: 100%;
+      width: 400px;
+      max-width: 95vw;
+      background: var(--bg-primary);
+      border-left: 1px solid var(--border);
+      box-shadow: var(--shadow-xl);
+      z-index: 101;
+      transform: translateX(100%);
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .detail-panel.open {
+      transform: translateX(0);
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px 24px 16px;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      background: var(--bg-primary);
+      z-index: 1;
+    }
+
+    .panel-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .panel-close {
+      background: transparent;
+      border: none;
+      font-size: 1.1rem;
+      cursor: pointer;
+      color: var(--text-tertiary);
+      padding: 4px 8px;
+      border-radius: 6px;
+      line-height: 1;
+    }
+
+    .panel-close:hover {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+    }
+
+    .panel-body {
+      padding: 24px;
+      flex: 1;
+    }
+
+    .panel-field {
+      margin-bottom: 20px;
+    }
+
+    .panel-field-label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-tertiary);
+      margin-bottom: 4px;
+    }
+
+    .panel-field-value {
+      font-size: 0.95rem;
+      color: var(--text-primary);
+      font-weight: 500;
+      word-break: break-all;
+    }
+
+    .panel-hf-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 8px;
+      padding: 10px 18px;
+      background: var(--accent-primary);
+      color: #ffffff !important;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      text-decoration: none !important;
+      transition: var(--transition);
+    }
+
+    .panel-hf-link:hover {
+      background: var(--accent-primary-hover);
+      box-shadow: var(--shadow-md);
+      text-decoration: none !important;
+    }
+
+    tbody tr.clickable-row {
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
@@ -597,6 +719,16 @@
     </div>
   </div>
 
+  <!-- Detail slide-in panel -->
+  <div class="panel-backdrop" id="panel-backdrop"></div>
+  <div class="detail-panel" id="detail-panel" role="dialog" aria-modal="true" aria-label="Model details">
+    <div class="panel-header">
+      <span class="panel-title">Model Details</span>
+      <button class="panel-close" id="panel-close" title="Close">✕</button>
+    </div>
+    <div class="panel-body" id="panel-body"></div>
+  </div>
+
   <script>
     // Theme management
     function initTheme() {
@@ -619,18 +751,19 @@
     document.getElementById("light-mode").addEventListener("click", () => setTheme("light"));
     document.getElementById("dark-mode").addEventListener("click", () => setTheme("dark"));
 
-    // Detect system preference
-    if (!localStorage.getItem("theme")) {
-      if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
-        setTheme("dark");
-      }
+    if (!localStorage.getItem("theme") && window.matchMedia("(prefers-color-scheme: dark)").matches) {
+      setTheme("dark");
     }
 
     initTheme();
 
-    // Application state and logic
+    const STORAGE_KEY = "hfExporterState";
+    const DEBOUNCE_MS = 300;
+
     const state = {
       hasData: false,
+      isLoading: false,
+      cacheKey: "",
       page: 1,
       pageSize: 25,
       totalPages: 1,
@@ -645,6 +778,10 @@
       maxLikes: "",
     };
 
+    let searchController = null;
+    let resultsController = null;
+    let applyDebounceTimer = null;
+
     const queryInput = document.getElementById("query");
     const taskInput = document.getElementById("task");
     const authorInput = document.getElementById("author");
@@ -658,6 +795,27 @@
     const errorEl = document.getElementById("error");
     const statusEl = document.getElementById("status");
     const resultsBody = document.getElementById("results-body");
+
+    const managedButtons = [
+      "search-btn",
+      "apply-btn",
+      "reset-btn",
+      "prev-page",
+      "next-page",
+      "export-full-json",
+      "export-full-csv",
+      "export-filtered-json",
+      "export-filtered-csv",
+    ].map((id) => document.getElementById(id));
+
+    function setLoading(isLoading) {
+      state.isLoading = isLoading;
+      for (const button of managedButtons) {
+        if (button) {
+          button.disabled = isLoading;
+        }
+      }
+    }
 
     function setMessage(text) {
       messageEl.textContent = text;
@@ -686,8 +844,87 @@
       state.maxLikes = maxLikesInput.value;
     }
 
+    function applyStateToInputs() {
+      taskInput.value = state.task;
+      authorInput.value = state.author;
+      libraryInput.value = state.library;
+      pageSizeInput.value = String(state.pageSize);
+      minDownloadsInput.value = state.minDownloads;
+      maxDownloadsInput.value = state.maxDownloads;
+      minLikesInput.value = state.minLikes;
+      maxLikesInput.value = state.maxLikes;
+    }
+
+    function persistState() {
+      const snapshot = {
+        query: queryInput.value.trim(),
+        task: state.task,
+        author: state.author,
+        library: state.library,
+        minDownloads: state.minDownloads,
+        maxDownloads: state.maxDownloads,
+        minLikes: state.minLikes,
+        maxLikes: state.maxLikes,
+        pageSize: String(state.pageSize),
+        sortBy: state.sortBy,
+        sortDir: state.sortDir,
+        page: String(state.page),
+        cacheKey: state.cacheKey,
+      };
+
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
+
+      const params = new URLSearchParams();
+      for (const [key, value] of Object.entries(snapshot)) {
+        if (value) {
+          params.set(key, value);
+        }
+      }
+
+      const nextUrl = params.toString() ? `?${params.toString()}` : window.location.pathname;
+      history.replaceState(null, "", nextUrl);
+    }
+
+    function hydrateState() {
+      const urlParams = new URLSearchParams(window.location.search);
+      let savedState = {};
+
+      try {
+        savedState = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+      } catch {
+        savedState = {};
+      }
+
+      const getValue = (key, fallback = "") => {
+        if (urlParams.has(key)) {
+          return urlParams.get(key) || fallback;
+        }
+        const saved = savedState[key];
+        return saved === undefined || saved === null ? fallback : String(saved);
+      };
+
+      queryInput.value = getValue("query");
+      state.task = getValue("task");
+      state.author = getValue("author");
+      state.library = getValue("library");
+      state.minDownloads = getValue("minDownloads");
+      state.maxDownloads = getValue("maxDownloads");
+      state.minLikes = getValue("minLikes");
+      state.maxLikes = getValue("maxLikes");
+      state.pageSize = Number(getValue("pageSize", "25")) || 25;
+      state.sortBy = getValue("sortBy", "downloads");
+      state.sortDir = getValue("sortDir", "desc") === "asc" ? "asc" : "desc";
+      state.page = Number(getValue("page", "1")) || 1;
+      state.cacheKey = getValue("cacheKey");
+      state.hasData = Boolean(state.cacheKey);
+
+      applyStateToInputs();
+    }
+
     function toQueryParams(includePaging = true) {
       const params = new URLSearchParams();
+
+      params.set("cache_key", state.cacheKey);
 
       if (state.task) params.set("task", state.task);
       if (state.author) params.set("author", state.author);
@@ -701,11 +938,54 @@
       params.set("sort_dir", state.sortDir);
 
       if (includePaging) {
-        params.set("page", state.page);
-        params.set("page_size", state.pageSize);
+        params.set("page", String(state.page));
+        params.set("page_size", String(state.pageSize));
       }
 
       return params;
+    }
+
+    function openDetailPanel(item) {
+      const panelBody = document.getElementById("panel-body");
+      const hfUrl = item.modelId ? `https://huggingface.co/${item.modelId}` : null;
+
+      panelBody.innerHTML = `
+        <div class="panel-field">
+          <div class="panel-field-label">Model ID</div>
+          <div class="panel-field-value">${item.modelId || "-"}</div>
+        </div>
+        <div class="panel-field">
+          <div class="panel-field-label">Author</div>
+          <div class="panel-field-value">${item.author || "-"}</div>
+        </div>
+        <div class="panel-field">
+          <div class="panel-field-label">Downloads</div>
+          <div class="panel-field-value">${(item.downloads ?? 0).toLocaleString()}</div>
+        </div>
+        <div class="panel-field">
+          <div class="panel-field-label">Likes</div>
+          <div class="panel-field-value">${(item.likes ?? 0).toLocaleString()}</div>
+        </div>
+        <div class="panel-field">
+          <div class="panel-field-label">Task</div>
+          <div class="panel-field-value">${item.pipeline_tag || "-"}</div>
+        </div>
+        <div class="panel-field">
+          <div class="panel-field-label">Library</div>
+          <div class="panel-field-value">${item.library_name || "-"}</div>
+        </div>
+        ${hfUrl ? `<a href="${hfUrl}" target="_blank" rel="noopener noreferrer" class="panel-hf-link">View on Hugging Face <span>↗</span></a>` : ""}
+      `;
+
+      document.getElementById("detail-panel").classList.add("open");
+      document.getElementById("panel-backdrop").classList.add("open");
+      document.body.style.overflow = "hidden";
+    }
+
+    function closeDetailPanel() {
+      document.getElementById("detail-panel").classList.remove("open");
+      document.getElementById("panel-backdrop").classList.remove("open");
+      document.body.style.overflow = "";
     }
 
     function renderRows(items) {
@@ -720,17 +1000,23 @@
 
       for (const item of items) {
         const row = document.createElement("tr");
-        const modelLink = item.modelId 
+        row.className = "clickable-row";
+        const modelLink = item.modelId
           ? `<a href="https://huggingface.co/${item.modelId}" target="_blank" rel="noopener noreferrer">${item.modelId}<span class="external-link-icon">↗</span></a>`
-          : "—";
+          : "-";
         row.innerHTML = `
           <td>${modelLink}</td>
-          <td>${item.author || "—"}</td>
+          <td>${item.author || "-"}</td>
           <td>${(item.downloads ?? 0).toLocaleString()}</td>
           <td>${(item.likes ?? 0).toLocaleString()}</td>
-          <td>${item.pipeline_tag || "—"}</td>
-          <td>${item.library_name || "—"}</td>
+          <td>${item.pipeline_tag || "-"}</td>
+          <td>${item.library_name || "-"}</td>
         `;
+        row.addEventListener("click", (e) => {
+          if (!e.target.closest("a")) {
+            openDetailPanel(item);
+          }
+        });
         resultsBody.appendChild(row);
       }
     }
@@ -738,24 +1024,46 @@
     function updateMeta(meta) {
       state.page = meta.page;
       state.totalPages = meta.totalPages;
-      statusEl.textContent = `📦 ${meta.totalFetched.toLocaleString()} fetched • 🔍 ${meta.totalFiltered.toLocaleString()} filtered • Page ${meta.page}/${meta.totalPages} • ${meta.pageSize}/page`;
+      statusEl.textContent = `${meta.totalFetched.toLocaleString()} fetched | ${meta.totalFiltered.toLocaleString()} filtered | Page ${meta.page}/${meta.totalPages} | ${meta.pageSize}/page`;
     }
 
     async function fetchResults() {
-      if (!state.hasData) return;
-      setError("");
-      setMessage("⏳ Applying filters and loading page...");
-
-      const response = await fetch(`/api/results?${toQueryParams(true)}`);
-      if (!response.ok) {
-        const errorBody = await response.json();
-        throw new Error(errorBody.detail || "Failed to load results");
+      if (!state.hasData || !state.cacheKey) {
+        setError("Run a search before filtering.");
+        return;
       }
 
-      const payload = await response.json();
-      renderRows(payload.items);
-      updateMeta(payload.meta);
-      setMessage("✓ Results updated.");
+      syncStateFromInputs();
+      setError("");
+      setMessage("Applying filters and loading page...");
+
+      if (resultsController) {
+        resultsController.abort();
+      }
+      resultsController = new AbortController();
+
+      setLoading(true);
+      try {
+        const response = await fetch(`/api/results?${toQueryParams(true)}`, {
+          signal: resultsController.signal,
+        });
+        if (!response.ok) {
+          const errorBody = await response.json();
+          throw new Error(errorBody.detail || "Failed to load results");
+        }
+
+        const payload = await response.json();
+        renderRows(payload.items);
+        updateMeta(payload.meta);
+        setMessage("Results updated.");
+        persistState();
+      } catch (error) {
+        if (error.name !== "AbortError") {
+          throw error;
+        }
+      } finally {
+        setLoading(false);
+      }
     }
 
     async function runSearch() {
@@ -768,64 +1076,111 @@
       syncStateFromInputs();
       state.page = 1;
       setError("");
-      setMessage("⏳ Fetching models from Hugging Face...");
+      setMessage("Fetching models from Hugging Face...");
 
-      const response = await fetch("/api/search", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          query,
-          task: state.task || null,
-          author: state.author || null,
-          library: state.library || null,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorBody = await response.json();
-        throw new Error(errorBody.detail || "Search failed");
+      if (searchController) {
+        searchController.abort();
       }
+      searchController = new AbortController();
 
-      const payload = await response.json();
-      state.hasData = true;
-      renderRows(payload.items);
-      updateMeta(payload.meta);
-      setMessage("✓ Search completed.");
+      setLoading(true);
+      try {
+        const response = await fetch("/api/search", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          signal: searchController.signal,
+          body: JSON.stringify({
+            query,
+            task: state.task || null,
+            author: state.author || null,
+            library: state.library || null,
+          }),
+        });
+
+        if (!response.ok) {
+          const errorBody = await response.json();
+          throw new Error(errorBody.detail || "Search failed");
+        }
+
+        const payload = await response.json();
+        state.cacheKey = payload.cacheKey || "";
+        state.hasData = Boolean(state.cacheKey);
+        renderRows(payload.items);
+        updateMeta(payload.meta);
+        setMessage("Search completed.");
+        persistState();
+      } catch (error) {
+        if (error.name !== "AbortError") {
+          throw error;
+        }
+      } finally {
+        setLoading(false);
+      }
     }
 
     async function resetAll() {
-      await fetch("/api/reset", { method: "POST" });
+      if (searchController) {
+        searchController.abort();
+      }
+      if (resultsController) {
+        resultsController.abort();
+      }
+
+      const params = new URLSearchParams();
+      if (state.cacheKey) {
+        params.set("cache_key", state.cacheKey);
+      }
+      const suffix = params.toString() ? `?${params.toString()}` : "";
+      await fetch(`/api/reset${suffix}`, { method: "POST" });
+
       state.hasData = false;
+      state.cacheKey = "";
       state.page = 1;
       state.totalPages = 1;
       state.sortBy = "downloads";
       state.sortDir = "desc";
+      state.task = "";
+      state.author = "";
+      state.library = "";
+      state.minDownloads = "";
+      state.maxDownloads = "";
+      state.minLikes = "";
+      state.maxLikes = "";
+      state.pageSize = 25;
 
       queryInput.value = "";
-      taskInput.value = "";
-      authorInput.value = "";
-      libraryInput.value = "";
-      pageSizeInput.value = "25";
-      minDownloadsInput.value = "";
-      maxDownloadsInput.value = "";
-      minLikesInput.value = "";
-      maxLikesInput.value = "";
+      applyStateToInputs();
 
       resultsBody.innerHTML = "";
       statusEl.textContent = "No results loaded.";
       setError("");
-      setMessage("✓ State reset.");
+      setMessage("State reset.");
+
+      localStorage.removeItem(STORAGE_KEY);
+      history.replaceState(null, "", window.location.pathname);
     }
 
     function exportData(scope, fmt) {
-      if (!state.hasData) {
+      if (!state.hasData || !state.cacheKey) {
         setError("Run a search before exporting.");
         return;
       }
       setError("");
+      syncStateFromInputs();
       const params = toQueryParams(false);
       params.set("fmt", fmt);
       window.open(`/api/export/${scope}?${params.toString()}`, "_blank");
+    }
+
+    function debounceFetchResults() {
+      clearTimeout(applyDebounceTimer);
+      applyDebounceTimer = setTimeout(async () => {
+        try {
+          await fetchResults();
+        } catch (error) {
+          setError(error.message);
+        }
+      }, DEBOUNCE_MS);
     }
 
     document.getElementById("search-btn").addEventListener("click", async () => {
@@ -836,18 +1191,14 @@
       }
     });
 
-    document.getElementById("apply-btn").addEventListener("click", async () => {
-      if (!state.hasData) {
+    document.getElementById("apply-btn").addEventListener("click", () => {
+      if (!state.hasData || !state.cacheKey) {
         setError("Run a search before filtering.");
         return;
       }
       syncStateFromInputs();
       state.page = 1;
-      try {
-        await fetchResults();
-      } catch (error) {
-        setError(error.message);
-      }
+      debounceFetchResults();
     });
 
     document.getElementById("prev-page").addEventListener("click", async () => {
@@ -878,6 +1229,17 @@
       }
     });
 
+    pageSizeInput.addEventListener("change", async () => {
+      if (!state.hasData || !state.cacheKey) return;
+      syncStateFromInputs();
+      state.page = 1;
+      try {
+        await fetchResults();
+      } catch (error) {
+        setError(error.message);
+      }
+    });
+
     document.querySelectorAll("th button[data-sort]").forEach((button) => {
       button.addEventListener("click", async () => {
         const sortBy = button.getAttribute("data-sort");
@@ -888,7 +1250,7 @@
           state.sortDir = "asc";
         }
 
-        if (!state.hasData) return;
+        if (!state.hasData || !state.cacheKey) return;
         try {
           await fetchResults();
         } catch (error) {
@@ -901,6 +1263,23 @@
     document.getElementById("export-full-csv").addEventListener("click", () => exportData("full", "csv"));
     document.getElementById("export-filtered-json").addEventListener("click", () => exportData("filtered", "json"));
     document.getElementById("export-filtered-csv").addEventListener("click", () => exportData("filtered", "csv"));
+
+    document.getElementById("panel-close").addEventListener("click", closeDetailPanel);
+    document.getElementById("panel-backdrop").addEventListener("click", closeDetailPanel);
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closeDetailPanel();
+    });
+
+    hydrateState();
+
+    if (state.cacheKey && queryInput.value.trim()) {
+      fetchResults().catch(() => {
+        state.hasData = false;
+        state.cacheKey = "";
+        setMessage("Saved filters restored. Run search to refresh results.");
+        persistState();
+      });
+    }
   </script>
 </body>
 </html>
