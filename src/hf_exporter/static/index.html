@@ -1,0 +1,527 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HF Model Exporter</title>
+  <style>
+    :root {
+      --bg: #f4f6f8;
+      --card: #ffffff;
+      --text: #1d2a35;
+      --muted: #5f6b76;
+      --accent: #0a7a4f;
+      --accent-2: #1458c0;
+      --danger: #9e2a2b;
+      --border: #d7dde2;
+      --hover: #eef3f8;
+    }
+
+    body {
+      margin: 0;
+      font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+      color: var(--text);
+      background: linear-gradient(180deg, #eef5ff 0%, var(--bg) 40%);
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    h1 {
+      margin: 0 0 4px;
+      font-size: 1.8rem;
+    }
+
+    .subtitle {
+      margin: 0 0 20px;
+      color: var(--muted);
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 8px 24px rgba(18, 36, 53, 0.06);
+      margin-bottom: 16px;
+    }
+
+    .grid {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: repeat(4, minmax(180px, 1fr));
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    label {
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    input, select, button {
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      padding: 9px 10px;
+      font: inherit;
+      background: #fff;
+      color: var(--text);
+    }
+
+    button {
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+
+    .primary {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+
+    .secondary {
+      background: #fff;
+      color: var(--accent-2);
+      border-color: var(--accent-2);
+    }
+
+    .danger {
+      background: #fff;
+      color: var(--danger);
+      border-color: var(--danger);
+    }
+
+    .muted {
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin: 8px 0 0;
+    }
+
+    .table-wrap {
+      overflow: auto;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      min-width: 900px;
+      background: #fff;
+    }
+
+    th, td {
+      border-bottom: 1px solid var(--border);
+      padding: 10px;
+      text-align: left;
+      vertical-align: top;
+      font-size: 0.92rem;
+    }
+
+    th button {
+      border: 0;
+      background: transparent;
+      font-weight: 700;
+      padding: 0;
+      color: var(--text);
+    }
+
+    tbody tr:hover {
+      background: var(--hover);
+    }
+
+    .footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+
+    .status {
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .error {
+      color: var(--danger);
+      font-weight: 600;
+    }
+
+    @media (max-width: 900px) {
+      .grid {
+        grid-template-columns: repeat(2, minmax(150px, 1fr));
+      }
+    }
+
+    @media (max-width: 560px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>HF Model Exporter Web</h1>
+    <p class="subtitle">Search Hugging Face models, filter and sort results, then export full or filtered data.</p>
+
+    <div class="card">
+      <div class="grid">
+        <div class="field">
+          <label for="query">Query</label>
+          <input id="query" placeholder="e.g. llama" />
+        </div>
+        <div class="field">
+          <label for="task">Task</label>
+          <input id="task" placeholder="e.g. text-generation" />
+        </div>
+        <div class="field">
+          <label for="author">Author</label>
+          <input id="author" placeholder="e.g. openai" />
+        </div>
+        <div class="field">
+          <label for="page-size">Page size</label>
+          <select id="page-size">
+            <option value="25" selected>25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="min-downloads">Min downloads</label>
+          <input id="min-downloads" type="number" min="0" />
+        </div>
+        <div class="field">
+          <label for="max-downloads">Max downloads</label>
+          <input id="max-downloads" type="number" min="0" />
+        </div>
+        <div class="field">
+          <label for="min-likes">Min likes</label>
+          <input id="min-likes" type="number" min="0" />
+        </div>
+        <div class="field">
+          <label for="max-likes">Max likes</label>
+          <input id="max-likes" type="number" min="0" />
+        </div>
+      </div>
+
+      <div class="row">
+        <button class="primary" id="search-btn">Search</button>
+        <button class="secondary" id="apply-btn">Apply Filters</button>
+        <button class="danger" id="reset-btn">Reset</button>
+      </div>
+
+      <div class="row">
+        <button class="secondary" id="export-full-json">Export Full JSON</button>
+        <button class="secondary" id="export-full-csv">Export Full CSV</button>
+        <button class="secondary" id="export-filtered-json">Export Filtered JSON</button>
+        <button class="secondary" id="export-filtered-csv">Export Filtered CSV</button>
+      </div>
+
+      <p id="message" class="muted">Run a search to load results.</p>
+      <p id="error" class="error"></p>
+    </div>
+
+    <div class="card">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th><button data-sort="modelId">Model</button></th>
+              <th><button data-sort="author">Author</button></th>
+              <th><button data-sort="downloads">Downloads</button></th>
+              <th><button data-sort="likes">Likes</button></th>
+              <th><button data-sort="pipeline_tag">Task</button></th>
+              <th><button data-sort="library_name">Library</button></th>
+            </tr>
+          </thead>
+          <tbody id="results-body"></tbody>
+        </table>
+      </div>
+
+      <div class="footer">
+        <div class="status" id="status">No results loaded.</div>
+        <div class="row">
+          <button id="prev-page">Previous</button>
+          <button id="next-page">Next</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const state = {
+      hasData: false,
+      page: 1,
+      pageSize: 25,
+      totalPages: 1,
+      sortBy: "downloads",
+      sortDir: "desc",
+      task: "",
+      author: "",
+      minDownloads: "",
+      maxDownloads: "",
+      minLikes: "",
+      maxLikes: "",
+    };
+
+    const queryInput = document.getElementById("query");
+    const taskInput = document.getElementById("task");
+    const authorInput = document.getElementById("author");
+    const pageSizeInput = document.getElementById("page-size");
+    const minDownloadsInput = document.getElementById("min-downloads");
+    const maxDownloadsInput = document.getElementById("max-downloads");
+    const minLikesInput = document.getElementById("min-likes");
+    const maxLikesInput = document.getElementById("max-likes");
+    const messageEl = document.getElementById("message");
+    const errorEl = document.getElementById("error");
+    const statusEl = document.getElementById("status");
+    const resultsBody = document.getElementById("results-body");
+
+    function setMessage(text) {
+      messageEl.textContent = text;
+    }
+
+    function setError(text) {
+      errorEl.textContent = text || "";
+    }
+
+    function syncStateFromInputs() {
+      state.task = taskInput.value.trim();
+      state.author = authorInput.value.trim();
+      state.pageSize = Number(pageSizeInput.value || 25);
+      state.minDownloads = minDownloadsInput.value;
+      state.maxDownloads = maxDownloadsInput.value;
+      state.minLikes = minLikesInput.value;
+      state.maxLikes = maxLikesInput.value;
+    }
+
+    function toQueryParams(includePaging = true) {
+      const params = new URLSearchParams();
+
+      if (state.task) params.set("task", state.task);
+      if (state.author) params.set("author", state.author);
+      if (state.minDownloads) params.set("min_downloads", state.minDownloads);
+      if (state.maxDownloads) params.set("max_downloads", state.maxDownloads);
+      if (state.minLikes) params.set("min_likes", state.minLikes);
+      if (state.maxLikes) params.set("max_likes", state.maxLikes);
+
+      params.set("sort_by", state.sortBy);
+      params.set("sort_dir", state.sortDir);
+
+      if (includePaging) {
+        params.set("page", state.page);
+        params.set("page_size", state.pageSize);
+      }
+
+      return params;
+    }
+
+    function renderRows(items) {
+      resultsBody.innerHTML = "";
+
+      if (!items.length) {
+        const row = document.createElement("tr");
+        row.innerHTML = '<td colspan="6">No results for current filters.</td>';
+        resultsBody.appendChild(row);
+        return;
+      }
+
+      for (const item of items) {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${item.modelId || ""}</td>
+          <td>${item.author || ""}</td>
+          <td>${item.downloads ?? 0}</td>
+          <td>${item.likes ?? 0}</td>
+          <td>${item.pipeline_tag || ""}</td>
+          <td>${item.library_name || ""}</td>
+        `;
+        resultsBody.appendChild(row);
+      }
+    }
+
+    function updateMeta(meta) {
+      state.page = meta.page;
+      state.totalPages = meta.totalPages;
+      statusEl.textContent = `Fetched: ${meta.totalFetched} | Filtered: ${meta.totalFiltered} | Page ${meta.page} / ${meta.totalPages} | Page size ${meta.pageSize}`;
+    }
+
+    async function fetchResults() {
+      if (!state.hasData) return;
+      setError("");
+      setMessage("Applying filters and loading page...");
+
+      const response = await fetch(`/api/results?${toQueryParams(true)}`);
+      if (!response.ok) {
+        const errorBody = await response.json();
+        throw new Error(errorBody.detail || "Failed to load results");
+      }
+
+      const payload = await response.json();
+      renderRows(payload.items);
+      updateMeta(payload.meta);
+      setMessage("Results updated.");
+    }
+
+    async function runSearch() {
+      const query = queryInput.value.trim();
+      if (!query) {
+        setError("Query is required.");
+        return;
+      }
+
+      syncStateFromInputs();
+      state.page = 1;
+      setError("");
+      setMessage("Fetching models from Hugging Face...");
+
+      const response = await fetch("/api/search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          query,
+          task: state.task || null,
+          author: state.author || null,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorBody = await response.json();
+        throw new Error(errorBody.detail || "Search failed");
+      }
+
+      const payload = await response.json();
+      state.hasData = true;
+      renderRows(payload.items);
+      updateMeta(payload.meta);
+      setMessage("Search completed.");
+    }
+
+    async function resetAll() {
+      await fetch("/api/reset", { method: "POST" });
+      state.hasData = false;
+      state.page = 1;
+      state.totalPages = 1;
+      state.sortBy = "downloads";
+      state.sortDir = "desc";
+
+      queryInput.value = "";
+      taskInput.value = "";
+      authorInput.value = "";
+      pageSizeInput.value = "25";
+      minDownloadsInput.value = "";
+      maxDownloadsInput.value = "";
+      minLikesInput.value = "";
+      maxLikesInput.value = "";
+
+      resultsBody.innerHTML = "";
+      statusEl.textContent = "No results loaded.";
+      setError("");
+      setMessage("State reset.");
+    }
+
+    function exportData(scope, fmt) {
+      if (!state.hasData) {
+        setError("Run a search before exporting.");
+        return;
+      }
+      setError("");
+      const params = toQueryParams(false);
+      params.set("fmt", fmt);
+      window.open(`/api/export/${scope}?${params.toString()}`, "_blank");
+    }
+
+    document.getElementById("search-btn").addEventListener("click", async () => {
+      try {
+        await runSearch();
+      } catch (error) {
+        setError(error.message);
+      }
+    });
+
+    document.getElementById("apply-btn").addEventListener("click", async () => {
+      if (!state.hasData) {
+        setError("Run a search before filtering.");
+        return;
+      }
+      syncStateFromInputs();
+      state.page = 1;
+      try {
+        await fetchResults();
+      } catch (error) {
+        setError(error.message);
+      }
+    });
+
+    document.getElementById("prev-page").addEventListener("click", async () => {
+      if (!state.hasData || state.page <= 1) return;
+      state.page -= 1;
+      try {
+        await fetchResults();
+      } catch (error) {
+        setError(error.message);
+      }
+    });
+
+    document.getElementById("next-page").addEventListener("click", async () => {
+      if (!state.hasData || state.page >= state.totalPages) return;
+      state.page += 1;
+      try {
+        await fetchResults();
+      } catch (error) {
+        setError(error.message);
+      }
+    });
+
+    document.getElementById("reset-btn").addEventListener("click", async () => {
+      try {
+        await resetAll();
+      } catch (error) {
+        setError(error.message);
+      }
+    });
+
+    document.querySelectorAll("th button[data-sort]").forEach((button) => {
+      button.addEventListener("click", async () => {
+        const sortBy = button.getAttribute("data-sort");
+        if (state.sortBy === sortBy) {
+          state.sortDir = state.sortDir === "asc" ? "desc" : "asc";
+        } else {
+          state.sortBy = sortBy;
+          state.sortDir = "asc";
+        }
+
+        if (!state.hasData) return;
+        try {
+          await fetchResults();
+        } catch (error) {
+          setError(error.message);
+        }
+      });
+    });
+
+    document.getElementById("export-full-json").addEventListener("click", () => exportData("full", "json"));
+    document.getElementById("export-full-csv").addEventListener("click", () => exportData("full", "csv"));
+    document.getElementById("export-filtered-json").addEventListener("click", () => exportData("filtered", "json"));
+    document.getElementById("export-filtered-csv").addEventListener("click", () => exportData("filtered", "csv"));
+  </script>
+</body>
+</html>

@@ -17,3 +17,14 @@ services:
     volumes:
       - ./exports:/output
     command: ["--help"]
+
+  hf-exporter-web:
+    build: .
+    environment:
+      - HF_TOKEN=${HF_TOKEN:-}
+    ports:
+      - "8111:8000"
+    volumes:
+      - ./exports:/output
+    entrypoint: ["uv", "run", "uvicorn"]
+    command: ["hf_exporter.web:app", "--host", "0.0.0.0", "--port", "8000"]

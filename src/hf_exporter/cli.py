@@ -1,21 +1,10 @@
 import typer
-import os
-from dotenv import load_dotenv
-from huggingface_hub import HfApi
-
-load_dotenv()
-import pandas as pd
 from rich.console import Console
 from rich.progress import Progress
-
-try:
-    from huggingface_hub import ModelFilter
-except ImportError:
-    ModelFilter = None
+from hf_exporter.service import export_rows, query_models
 
 app = typer.Typer()
 console = Console()
-api = HfApi()
 
 @app.command()
 def export(
@@ -26,31 +15,18 @@ def export(
     fmt: str = "csv",  # csv|json
 ):
     """Export HF models matching query."""
-    if os.getenv("HF_TOKEN"):
-        api.login(token=os.getenv("HF_TOKEN"))
-    
-    filters = {}
-    if task:
-        filters["task"] = task
-    if author:
-        filters["author"] = author
-    
+
     with Progress() as progress:
-        task = progress.add_task("[green]Fetching models...", total=None)
-        model_filter = ModelFilter(**filters) if ModelFilter and filters else (filters or None)
-        models = list(api.list_models(search=query, filter=model_filter))
-        progress.remove_task(task)
-    
-    console.print(f"[green]Found {len(models)} models[/green]")
-    
-    data = [{"modelId": m.modelId, "downloads": getattr(m, 'downloads', 0),
-             "likes": getattr(m, 'likes', 0), "pipeline_tag": getattr(m, 'pipeline_tag', None),
-             "library_name": getattr(m, 'library_name', None)} for m in models]
-    
-    df = pd.DataFrame(data)
-    if fmt == "csv":
-        df.to_csv(output, index=False)
+        progress_task = progress.add_task("[green]Fetching models...", total=None)
+        rows = query_models(query, task, author)
+        progress.remove_task(progress_task)
+
+    console.print(f"[green]Found {len(rows)} models[/green]")
+
+    format_name = fmt.lower()
+    export_rows(rows, output, format_name)
+
+    if format_name == "csv":
         console.print(f"[blue]Exported CSV to {output}[/blue]")
     else:
-        df.to_json(output, orient="records", indent=2)
         console.print(f"[blue]Exported JSON to {output}[/blue]")

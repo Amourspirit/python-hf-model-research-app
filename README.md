@@ -92,6 +92,35 @@ Set in `.env` file or:
 export HF_TOKEN=your_token_here
 ```
 
+## Web API And Browser UI
+
+Start the web app locally:
+
+```bash
+uv run uvicorn hf_exporter.web:app --host 0.0.0.0 --port 8000 --reload
+```
+
+Open `http://localhost:8000` in your browser.
+
+What the web app supports:
+
+- Live Hugging Face search by `query` (plus optional `task` and `author`).
+- Server-side cached result set after each search.
+- Sortable table columns.
+- Server-side filtering by `task`, `author`, `min/max downloads`, and `min/max likes`.
+- Pagination with default page size of `25`.
+- Export full search result set as JSON or CSV.
+- Export current filtered result set as JSON or CSV.
+- Reset action to clear cached results and table state.
+
+Main API endpoints:
+
+- `POST /api/search`: runs live query against Hugging Face and returns first page of data.
+- `GET /api/results`: returns filtered/sorted/paginated rows from cached search results.
+- `GET /api/export/full`: exports all fetched rows as `fmt=json|csv`.
+- `GET /api/export/filtered`: exports filtered rows as `fmt=json|csv`.
+- `POST /api/reset`: clears current cached result set.
+
 ## Development
 
 Run lint and tests:
@@ -147,6 +176,14 @@ Direct CLI mode without an interactive shell:
 docker compose run --rm hf-exporter-cli "text-generation" --output /output/models.csv
 docker compose run --rm hf-exporter-cli "llama" --fmt json --output /output/models.json
 ```
+
+Run the browser API service in Docker Compose:
+
+```bash
+docker compose up hf-exporter-web
+```
+
+Then open `http://localhost:8000` in your browser.
 
 Authentication in Docker:
 
