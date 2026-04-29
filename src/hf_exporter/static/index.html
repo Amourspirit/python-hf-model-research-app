@@ -4,55 +4,162 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>HF Model Exporter</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <style>
     :root {
-      --bg: #f4f6f8;
-      --card: #ffffff;
-      --text: #1d2a35;
-      --muted: #5f6b76;
-      --accent: #0a7a4f;
-      --accent-2: #1458c0;
-      --danger: #9e2a2b;
-      --border: #d7dde2;
-      --hover: #eef3f8;
+      /* Light mode */
+      --bg-primary: #ffffff;
+      --bg-secondary: #f8fafc;
+      --bg-tertiary: #f1f5f9;
+      --text-primary: #0f172a;
+      --text-secondary: #475569;
+      --text-tertiary: #64748b;
+      --border: #e2e8f0;
+      --border-light: #f1f5f9;
+      
+      --accent-primary: #0066cc;
+      --accent-primary-hover: #004f9e;
+      --accent-secondary: #10b981;
+      --accent-tertiary: #f59e0b;
+      --danger: #ef4444;
+      --success: #10b981;
+      --link-color: #0057d8;
+      --link-hover: #003f9f;
+      
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+      --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+      
+      --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    html[data-theme="dark"] {
+      --bg-primary: #0f172a;
+      --bg-secondary: #1e293b;
+      --bg-tertiary: #334155;
+      --text-primary: #f1f5f9;
+      --text-secondary: #cbd5e1;
+      --text-tertiary: #94a3b8;
+      --border: #334155;
+      --border-light: #1e293b;
+      
+      --accent-primary: #3b82f6;
+      --accent-primary-hover: #2563eb;
+      --accent-secondary: #10b981;
+      --accent-tertiary: #fbbf24;
+      --danger: #f87171;
+      --success: #10b981;
+      --link-color: #93c5fd;
+      --link-hover: #bfdbfe;
+      
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -4px rgba(0, 0, 0, 0.3);
+      --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
     }
 
     body {
-      margin: 0;
-      font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
-      color: var(--text);
-      background: linear-gradient(180deg, #eef5ff 0%, var(--bg) 40%);
+      font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text-primary);
+      background: var(--bg-secondary);
+      transition: var(--transition);
+      line-height: 1.6;
     }
 
     .container {
-      max-width: 1200px;
+      max-width: 1280px;
       margin: 0 auto;
-      padding: 24px;
+      padding: 28px 20px;
     }
 
-    h1 {
-      margin: 0 0 4px;
-      font-size: 1.8rem;
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 32px;
+      gap: 16px;
+    }
+
+    .header-content h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+      color: var(--text-primary);
     }
 
     .subtitle {
-      margin: 0 0 20px;
-      color: var(--muted);
+      font-size: 0.95rem;
+      color: var(--text-secondary);
+      font-weight: 400;
+    }
+
+    .theme-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px;
+      cursor: pointer;
+      transition: var(--transition);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .theme-toggle:hover {
+      box-shadow: var(--shadow-md);
+      border-color: var(--accent-primary);
+    }
+
+    .theme-toggle button {
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      padding: 6px 10px;
+      border-radius: 6px;
+      transition: var(--transition);
+      font-size: 1.2rem;
+      color: var(--text-secondary);
+    }
+
+    .theme-toggle button.active {
+      background: var(--bg-tertiary);
+      color: var(--accent-primary);
     }
 
     .card {
-      background: var(--card);
+      background: var(--bg-primary);
       border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 16px;
-      box-shadow: 0 8px 24px rgba(18, 36, 53, 0.06);
-      margin-bottom: 16px;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: var(--shadow-sm);
+      margin-bottom: 20px;
+      transition: var(--transition);
+    }
+
+    .card:hover {
+      box-shadow: var(--shadow-md);
+      border-color: var(--border-light);
     }
 
     .grid {
       display: grid;
-      gap: 10px;
-      grid-template-columns: repeat(4, minmax(180px, 1fr));
+      gap: 12px;
+      grid-template-columns: repeat(4, minmax(160px, 1fr));
+      margin-bottom: 16px;
     }
 
     .field {
@@ -62,201 +169,405 @@
     }
 
     label {
-      font-size: 0.85rem;
-      color: var(--muted);
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
 
-    input, select, button {
-      border-radius: 8px;
+    input, select {
+      padding: 10px 12px;
       border: 1px solid var(--border);
-      padding: 9px 10px;
-      font: inherit;
-      background: #fff;
-      color: var(--text);
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 0.9rem;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      transition: var(--transition);
+    }
+
+    input::placeholder, select::placeholder {
+      color: var(--text-tertiary);
+    }
+
+    input:focus, select:focus {
+      outline: none;
+      border-color: var(--accent-primary);
+      box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
+      background: var(--bg-primary);
+    }
+
+    html[data-theme="dark"] input:focus,
+    html[data-theme="dark"] select:focus {
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
     }
 
     button {
-      cursor: pointer;
+      padding: 10px 16px;
+      border: 1.5px solid transparent;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 0.9rem;
       font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+      white-space: nowrap;
     }
 
-    .row {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      margin-top: 12px;
+    button:active {
+      transform: scale(0.98);
     }
 
     .primary {
-      background: var(--accent);
-      color: #fff;
-      border-color: var(--accent);
+      background: var(--accent-primary);
+      color: #ffffff;
+      border-color: var(--accent-primary);
+    }
+
+    .primary:hover {
+      opacity: 0.9;
+      box-shadow: var(--shadow-md);
+    }
+
+    .primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
     }
 
     .secondary {
-      background: #fff;
-      color: var(--accent-2);
-      border-color: var(--accent-2);
+      background: var(--accent-primary);
+      color: #ffffff;
+      border-color: var(--accent-primary);
+    }
+
+    .secondary:hover {
+      background: var(--accent-primary-hover);
+      border-color: var(--accent-primary-hover);
+      box-shadow: var(--shadow-md);
+    }
+
+    .secondary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
     }
 
     .danger {
-      background: #fff;
+      background: transparent;
       color: var(--danger);
       border-color: var(--danger);
     }
 
-    .muted {
-      color: var(--muted);
+    .danger:hover {
+      background: var(--danger);
+      color: white;
+      box-shadow: var(--shadow-md);
+    }
+
+    .action-row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+
+    .action-section {
+      background: var(--bg-tertiary);
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+
+    .action-section-title {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--text-tertiary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+      display: block;
+    }
+
+    .action-section .action-row {
+      gap: 8px;
+      margin-bottom: 0;
+    }
+
+    .message-box {
+      padding: 12px 14px;
+      border-radius: 8px;
       font-size: 0.9rem;
-      margin: 8px 0 0;
+      margin-bottom: 12px;
+      border-left: 4px solid transparent;
+    }
+
+    .muted {
+      background: var(--bg-tertiary);
+      color: var(--text-secondary);
+      border-left-color: var(--accent-primary);
+    }
+
+    .error {
+      background: var(--danger);
+      background: rgba(239, 68, 68, 0.1);
+      color: var(--danger);
+      border-left-color: var(--danger);
+      font-weight: 600;
+    }
+
+    .success {
+      background: var(--success);
+      background: rgba(16, 185, 129, 0.1);
+      color: var(--success);
+      border-left-color: var(--success);
+      font-weight: 600;
     }
 
     .table-wrap {
-      overflow: auto;
+      overflow-x: auto;
       border: 1px solid var(--border);
-      border-radius: 12px;
+      border-radius: 10px;
+      box-shadow: var(--shadow-sm);
     }
 
     table {
       border-collapse: collapse;
       width: 100%;
       min-width: 900px;
-      background: #fff;
+      background: var(--bg-primary);
     }
 
-    th, td {
-      border-bottom: 1px solid var(--border);
-      padding: 10px;
+    th {
+      background: var(--bg-tertiary);
+      border-bottom: 2px solid var(--border);
+      padding: 12px;
       text-align: left;
-      vertical-align: top;
-      font-size: 0.92rem;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
 
-    th button {
-      border: 0;
-      background: transparent;
-      font-weight: 700;
-      padding: 0;
-      color: var(--text);
+    td {
+      border-bottom: 1px solid var(--border);
+      padding: 12px;
+      font-size: 0.92rem;
+      color: var(--text-primary);
+    }
+
+    tbody tr {
+      transition: var(--transition);
     }
 
     tbody tr:hover {
-      background: var(--hover);
+      background: var(--bg-tertiary);
+    }
+
+    tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    th button {
+      border: none;
+      background: transparent;
+      font-weight: 700;
+      padding: 0;
+      color: var(--text-primary);
+      cursor: pointer;
+      transition: var(--transition);
+    }
+
+    th button:hover {
+      color: var(--accent-primary);
     }
 
     a {
-      color: var(--accent-2);
+      color: var(--link-color);
       text-decoration: none;
+      transition: var(--transition);
+      font-weight: 600;
     }
 
     a:hover {
       text-decoration: underline;
+      color: var(--link-hover);
+      opacity: 1;
     }
 
     .external-link-icon {
       font-size: 0.8em;
       margin-left: 4px;
       vertical-align: text-top;
-      opacity: 0.7;
+      opacity: 0.85;
+      transition: var(--transition);
+    }
+
+    a:hover .external-link-icon {
+      opacity: 1;
     }
 
     .footer {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      gap: 12px;
-      margin-top: 10px;
+      gap: 16px;
+      margin-top: 16px;
       flex-wrap: wrap;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
     }
 
     .status {
-      color: var(--muted);
-      font-size: 0.92rem;
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      font-weight: 500;
     }
 
-    .error {
-      color: var(--danger);
-      font-weight: 600;
+    .pagination-controls {
+      display: flex;
+      gap: 8px;
     }
 
-    @media (max-width: 900px) {
+    .pagination-controls button {
+      padding: 8px 12px;
+      font-size: 0.85rem;
+    }
+
+    @media (max-width: 1024px) {
       .grid {
-        grid-template-columns: repeat(2, minmax(150px, 1fr));
+        grid-template-columns: repeat(2, minmax(140px, 1fr));
+      }
+
+      .header {
+        flex-direction: column;
+        align-items: flex-start;
       }
     }
 
-    @media (max-width: 560px) {
+    @media (max-width: 640px) {
       .grid {
         grid-template-columns: 1fr;
+      }
+
+      .action-row {
+        gap: 8px;
+      }
+
+      button {
+        padding: 10px 12px;
+        font-size: 0.85rem;
+      }
+
+      .footer {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .pagination-controls {
+        width: 100%;
+      }
+
+      .pagination-controls button {
+        flex: 1;
+      }
+
+      .container {
+        padding: 16px 12px;
+      }
+
+      .header-content h1 {
+        font-size: 1.5rem;
+      }
+
+      table {
+        min-width: 100%;
+        font-size: 0.85rem;
+      }
+
+      th, td {
+        padding: 8px;
       }
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>HF Model Exporter Web</h1>
-    <p class="subtitle">Search Hugging Face models, filter and sort results, then export full or filtered data.</p>
+    <div class="header">
+      <div class="header-content">
+        <h1>🤗 Model Exporter</h1>
+        <p class="subtitle">Search Hugging Face models with advanced filtering and export</p>
+      </div>
+      <div class="theme-toggle" id="theme-toggle">
+        <button id="light-mode" class="active" title="Light mode">☀️</button>
+        <button id="dark-mode" title="Dark mode">🌙</button>
+      </div>
+    </div>
 
     <div class="card">
       <div class="grid">
         <div class="field">
           <label for="query">Query</label>
-          <input id="query" placeholder="e.g. llama" />
+          <input id="query" placeholder="llama, bert, etc." />
         </div>
         <div class="field">
           <label for="task">Task</label>
-          <input id="task" placeholder="e.g. text-generation" />
+          <input id="task" placeholder="text-generation" />
         </div>
         <div class="field">
           <label for="author">Author</label>
-          <input id="author" placeholder="e.g. openai" />
+          <input id="author" placeholder="openai, meta" />
         </div>
         <div class="field">
           <label for="library">Library</label>
-          <input id="library" placeholder="e.g. transformers" />
-        </div>
-        <div class="field">
-          <label for="page-size">Page size</label>
-          <select id="page-size">
-            <option value="25" selected>25</option>
-            <option value="50">50</option>
-            <option value="100">100</option>
-          </select>
+          <input id="library" placeholder="transformers" />
         </div>
 
         <div class="field">
-          <label for="min-downloads">Min downloads</label>
+          <label for="min-downloads">Min Downloads</label>
           <input id="min-downloads" type="number" min="0" />
         </div>
         <div class="field">
-          <label for="max-downloads">Max downloads</label>
+          <label for="max-downloads">Max Downloads</label>
           <input id="max-downloads" type="number" min="0" />
         </div>
         <div class="field">
-          <label for="min-likes">Min likes</label>
+          <label for="min-likes">Min Likes</label>
           <input id="min-likes" type="number" min="0" />
         </div>
         <div class="field">
-          <label for="max-likes">Max likes</label>
+          <label for="max-likes">Max Likes</label>
           <input id="max-likes" type="number" min="0" />
+        </div>
+
+        <div class="field">
+          <label for="page-size">Page Size</label>
+          <select id="page-size">
+            <option value="25" selected>25 items</option>
+            <option value="50">50 items</option>
+            <option value="100">100 items</option>
+          </select>
         </div>
       </div>
 
-      <div class="row">
-        <button class="primary" id="search-btn">Search</button>
-        <button class="secondary" id="apply-btn">Apply Filters</button>
-        <button class="danger" id="reset-btn">Reset</button>
+      <div class="action-row">
+        <button class="primary" id="search-btn">🔍 Search</button>
+        <button class="secondary" id="apply-btn">⚙️ Apply Filters</button>
+        <button class="danger" id="reset-btn">↻ Reset</button>
       </div>
 
-      <div class="row">
-        <button class="secondary" id="export-full-json">Export Full JSON</button>
-        <button class="secondary" id="export-full-csv">Export Full CSV</button>
-        <button class="secondary" id="export-filtered-json">Export Filtered JSON</button>
-        <button class="secondary" id="export-filtered-csv">Export Filtered CSV</button>
+      <div class="action-section">
+        <span class="action-section-title">Export</span>
+        <div class="action-row">
+          <button class="secondary" id="export-full-json">📋 Full JSON</button>
+          <button class="secondary" id="export-full-csv">📊 Full CSV</button>
+          <button class="secondary" id="export-filtered-json">📋 Filtered JSON</button>
+          <button class="secondary" id="export-filtered-csv">📊 Filtered CSV</button>
+        </div>
       </div>
 
-      <p id="message" class="muted">Run a search to load results.</p>
-      <p id="error" class="error"></p>
+      <div id="message" class="message-box muted">Run a search to load results.</div>
+      <div id="error" class="message-box error" style="display: none;"></div>
     </div>
 
     <div class="card">
@@ -266,8 +577,8 @@
             <tr>
               <th><button data-sort="modelId">Model</button></th>
               <th><button data-sort="author">Author</button></th>
-              <th><button data-sort="downloads">Downloads</button></th>
-              <th><button data-sort="likes">Likes</button></th>
+              <th><button data-sort="downloads">⬇️ Downloads</button></th>
+              <th><button data-sort="likes">❤️ Likes</button></th>
               <th><button data-sort="pipeline_tag">Task</button></th>
               <th><button data-sort="library_name">Library</button></th>
             </tr>
@@ -278,15 +589,46 @@
 
       <div class="footer">
         <div class="status" id="status">No results loaded.</div>
-        <div class="row">
-          <button id="prev-page">Previous</button>
-          <button id="next-page">Next</button>
+        <div class="pagination-controls">
+          <button id="prev-page" class="secondary">← Previous</button>
+          <button id="next-page" class="secondary">Next →</button>
         </div>
       </div>
     </div>
   </div>
 
   <script>
+    // Theme management
+    function initTheme() {
+      const savedTheme = localStorage.getItem("theme") || "light";
+      document.documentElement.setAttribute("data-theme", savedTheme);
+      updateThemeButtons(savedTheme);
+    }
+
+    function updateThemeButtons(theme) {
+      document.getElementById("light-mode").classList.toggle("active", theme === "light");
+      document.getElementById("dark-mode").classList.toggle("active", theme === "dark");
+    }
+
+    function setTheme(theme) {
+      document.documentElement.setAttribute("data-theme", theme);
+      localStorage.setItem("theme", theme);
+      updateThemeButtons(theme);
+    }
+
+    document.getElementById("light-mode").addEventListener("click", () => setTheme("light"));
+    document.getElementById("dark-mode").addEventListener("click", () => setTheme("dark"));
+
+    // Detect system preference
+    if (!localStorage.getItem("theme")) {
+      if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+        setTheme("dark");
+      }
+    }
+
+    initTheme();
+
+    // Application state and logic
     const state = {
       hasData: false,
       page: 1,
@@ -319,10 +661,18 @@
 
     function setMessage(text) {
       messageEl.textContent = text;
+      messageEl.style.display = "block";
+      errorEl.style.display = "none";
     }
 
     function setError(text) {
-      errorEl.textContent = text || "";
+      if (text) {
+        errorEl.textContent = text;
+        errorEl.style.display = "block";
+        messageEl.style.display = "none";
+      } else {
+        errorEl.style.display = "none";
+      }
     }
 
     function syncStateFromInputs() {
@@ -363,7 +713,7 @@
 
       if (!items.length) {
         const row = document.createElement("tr");
-        row.innerHTML = '<td colspan="6">No results for current filters.</td>';
+        row.innerHTML = '<td colspan="6" style="text-align: center; color: var(--text-tertiary); padding: 24px;">No results found for the current filters.</td>';
         resultsBody.appendChild(row);
         return;
       }
@@ -372,14 +722,14 @@
         const row = document.createElement("tr");
         const modelLink = item.modelId 
           ? `<a href="https://huggingface.co/${item.modelId}" target="_blank" rel="noopener noreferrer">${item.modelId}<span class="external-link-icon">↗</span></a>`
-          : "";
+          : "—";
         row.innerHTML = `
           <td>${modelLink}</td>
-          <td>${item.author || ""}</td>
-          <td>${item.downloads ?? 0}</td>
-          <td>${item.likes ?? 0}</td>
-          <td>${item.pipeline_tag || ""}</td>
-          <td>${item.library_name || ""}</td>
+          <td>${item.author || "—"}</td>
+          <td>${(item.downloads ?? 0).toLocaleString()}</td>
+          <td>${(item.likes ?? 0).toLocaleString()}</td>
+          <td>${item.pipeline_tag || "—"}</td>
+          <td>${item.library_name || "—"}</td>
         `;
         resultsBody.appendChild(row);
       }
@@ -388,13 +738,13 @@
     function updateMeta(meta) {
       state.page = meta.page;
       state.totalPages = meta.totalPages;
-      statusEl.textContent = `Fetched: ${meta.totalFetched} | Filtered: ${meta.totalFiltered} | Page ${meta.page} / ${meta.totalPages} | Page size ${meta.pageSize}`;
+      statusEl.textContent = `📦 ${meta.totalFetched.toLocaleString()} fetched • 🔍 ${meta.totalFiltered.toLocaleString()} filtered • Page ${meta.page}/${meta.totalPages} • ${meta.pageSize}/page`;
     }
 
     async function fetchResults() {
       if (!state.hasData) return;
       setError("");
-      setMessage("Applying filters and loading page...");
+      setMessage("⏳ Applying filters and loading page...");
 
       const response = await fetch(`/api/results?${toQueryParams(true)}`);
       if (!response.ok) {
@@ -405,20 +755,20 @@
       const payload = await response.json();
       renderRows(payload.items);
       updateMeta(payload.meta);
-      setMessage("Results updated.");
+      setMessage("✓ Results updated.");
     }
 
     async function runSearch() {
       const query = queryInput.value.trim();
       if (!query) {
-        setError("Query is required.");
+        setError("Please enter a search query.");
         return;
       }
 
       syncStateFromInputs();
       state.page = 1;
       setError("");
-      setMessage("Fetching models from Hugging Face...");
+      setMessage("⏳ Fetching models from Hugging Face...");
 
       const response = await fetch("/api/search", {
         method: "POST",
@@ -440,7 +790,7 @@
       state.hasData = true;
       renderRows(payload.items);
       updateMeta(payload.meta);
-      setMessage("Search completed.");
+      setMessage("✓ Search completed.");
     }
 
     async function resetAll() {
@@ -464,7 +814,7 @@
       resultsBody.innerHTML = "";
       statusEl.textContent = "No results loaded.";
       setError("");
-      setMessage("State reset.");
+      setMessage("✓ State reset.");
     }
 
     function exportData(scope, fmt) {
