@@ -1574,6 +1574,8 @@
         for (const btn of managementBodyEl.querySelectorAll("button[data-role-id]")) {
           btn.addEventListener("click", async () => {
             const roleId = btn.getAttribute("data-role-id");
+            const roleName = btn.closest(".management-item")?.querySelector(".management-item-name")?.textContent || "this role";
+            if (!confirm(`Delete role "${roleName}"? Existing records using this role will not be affected.`)) return;
             try {
               const res = await fetch(`/api/roles/${encodeURIComponent(roleId)}`, { method: "DELETE" });
               if (!res.ok) throw new Error("Failed to delete role");
@@ -1589,6 +1591,8 @@
         for (const btn of managementBodyEl.querySelectorAll("button[data-category-id]")) {
           btn.addEventListener("click", async () => {
             const categoryId = btn.getAttribute("data-category-id");
+            const catName = btn.closest(".management-item")?.querySelector(".management-item-name")?.textContent || "this category";
+            if (!confirm(`Delete category "${catName}"? Existing records using this category will not be affected.`)) return;
             try {
               const res = await fetch(`/api/categories/${encodeURIComponent(categoryId)}`, { method: "DELETE" });
               if (!res.ok) throw new Error("Failed to delete category");
