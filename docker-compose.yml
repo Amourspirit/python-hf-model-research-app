@@ -26,7 +26,7 @@ services:
     build: .
     environment:
       - HF_TOKEN=${HF_TOKEN:-}
-      - HF_EXPORTER_DB_PATH=/storage/hf_exporter.db
+      - HF_EXPORTER_STORAGE_DIR=/storage
     ports:
       - "8111:8000"
     volumes:

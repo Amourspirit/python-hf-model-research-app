@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import shutil
 import uuid
@@ -9,7 +10,7 @@ from pathlib import Path
 from threading import Lock
 from typing import Any
 
-BASE_STORAGE_DIR = Path(__file__).resolve().parents[2] / "storage"
+BASE_STORAGE_DIR = Path(os.getenv("HF_EXPORTER_STORAGE_DIR", str(Path(__file__).resolve().parents[2] / "storage")))
 PROJECTS_DIR = BASE_STORAGE_DIR / "projects"
 ACTIVE_FILE = PROJECTS_DIR / "_active"
 LEGACY_DB_PATH = BASE_STORAGE_DIR / "hf_exporter.db"
