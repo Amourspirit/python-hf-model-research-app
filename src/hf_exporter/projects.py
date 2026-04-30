@@ -52,7 +52,10 @@ def get_active_project_id() -> str:
 def set_active_project(slug: str) -> dict[str, Any]:
     if not (PROJECTS_DIR / slug).is_dir():
         raise ValueError(f"Project not found: {slug!r}")
+    from hf_exporter.notes_store import initialize_project_database
+
     with _LOCK:
+        initialize_project_database(slug)
         ACTIVE_FILE.write_text(slug)
     return get_project(slug)
 
@@ -89,7 +92,7 @@ def list_projects() -> list[dict[str, Any]]:
     return projects
 
 
-def create_project(display_name: str, slug: str | None = None) -> dict[str, Any]:
+def create_project(display_name: str, slug: str | None = None, auto_activate: bool = True) -> dict[str, Any]:
     display_name = display_name.strip()
     if not display_name:
         raise ValueError("Display name cannot be empty")
@@ -107,6 +110,8 @@ def create_project(display_name: str, slug: str | None = None) -> dict[str, Any]
         )
 
     project_dir = PROJECTS_DIR / slug
+    from hf_exporter.notes_store import initialize_project_database
+
     with _LOCK:
         if project_dir.exists():
             raise ValueError(f"Project with slug {slug!r} already exists")
@@ -114,13 +119,18 @@ def create_project(display_name: str, slug: str | None = None) -> dict[str, Any]
         now_iso = datetime.now(timezone.utc).isoformat()
         meta = {"id": slug, "displayName": display_name, "createdAt": now_iso}
         _write_meta(slug, meta)
+        initialize_project_database(slug)
+        is_active = False
+        if auto_activate:
+            ACTIVE_FILE.write_text(slug)
+            is_active = True
 
     return {
         "id": slug,
         "displayName": display_name,
         "createdAt": now_iso,
         "databasePath": str(_db_path(slug)),
-        "isActive": False,
+        "isActive": is_active,
     }
 
 
@@ -139,6 +149,8 @@ def delete_project(slug: str) -> None:
 
 def bootstrap_default_project() -> None:
     """Ensure the default project exists. Migrate legacy DB if present."""
+    from hf_exporter.notes_store import initialize_project_database
+
     default_dir = PROJECTS_DIR / "default"
     default_dir.mkdir(parents=True, exist_ok=True)
 
@@ -153,6 +165,8 @@ def bootstrap_default_project() -> None:
     default_db = _db_path("default")
     if not default_db.exists() and LEGACY_DB_PATH.exists():
         shutil.copy2(LEGACY_DB_PATH, default_db)
+    if not default_db.exists():
+        initialize_project_database("default")
 
     if not ACTIVE_FILE.exists():
         ACTIVE_FILE.write_text("default")

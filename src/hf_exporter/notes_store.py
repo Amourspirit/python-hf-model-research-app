@@ -72,6 +72,13 @@ def _get_connection(project_id: str | None = None) -> sqlite3.Connection:
     return connection
 
 
+def initialize_project_database(project_id: str | None = None) -> Path:
+    database_path = get_database_path(project_id=project_id)
+    with _get_connection(project_id=project_id):
+        pass
+    return database_path
+
+
 def _initialize_database(connection: sqlite3.Connection) -> None:
     connection.executescript(
         """

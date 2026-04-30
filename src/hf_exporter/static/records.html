@@ -1258,6 +1258,8 @@
 
     initSiteSettings();
 
+  const PROJECT_SWITCH_KEY = "hfExporterProjectSwitch";
+
     const state = {
       page: 1,
       pageSize: 25,
@@ -1291,6 +1293,19 @@
       } catch {
         // Keep fallback text.
       }
+    }
+
+    async function handleProjectSwitch(projectName = "") {
+      state.page = 1;
+      closeEntryDetail();
+      if (state.drawerOpen) {
+        closeDrawer();
+      }
+      await loadActiveProjectLabel();
+      await loadOptions();
+      resetForm();
+      await refreshAll();
+      setMessage(projectName ? `Switched to ${projectName}.` : "Project changed.");
     }
 
     function esc(v) {
@@ -1984,6 +1999,22 @@
       }
       if (state.drawerOpen) {
         closeDrawer();
+      }
+    });
+
+    window.addEventListener("storage", (event) => {
+      if (event.key !== PROJECT_SWITCH_KEY || !event.newValue) {
+        return;
+      }
+      try {
+        const payload = JSON.parse(event.newValue);
+        handleProjectSwitch(payload.projectName || payload.projectId || "").catch((error) => {
+          setMessage(error.message, "error");
+        });
+      } catch {
+        handleProjectSwitch().catch((error) => {
+          setMessage(error.message, "error");
+        });
       }
     });
 

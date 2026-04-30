@@ -511,19 +511,22 @@ def test_project_lifecycle_endpoints(monkeypatch, tmp_path):
         assert listed.status_code == 200
         items = listed.json()["items"]
         assert any(item["id"] == "default" for item in items)
+        assert (projects_dir / "default" / "project.db").exists()
 
         created = client.post("/api/projects", json={"displayName": "My Experiments", "slug": "my-exp"})
         assert created.status_code == 201
         assert created.json()["id"] == "my-exp"
-
-        activated = client.post("/api/projects/my-exp/activate")
-        assert activated.status_code == 200
-        assert activated.json()["id"] == "my-exp"
-        assert activated.json()["isActive"] is True
+        assert created.json()["isActive"] is True
+        assert (projects_dir / "my-exp" / "project.db").exists()
 
         active = client.get("/api/projects/active")
         assert active.status_code == 200
         assert active.json()["id"] == "my-exp"
+
+        activated = client.post("/api/projects/default/activate")
+        assert activated.status_code == 200
+        assert activated.json()["id"] == "default"
+        assert activated.json()["isActive"] is True
 
         deleted = client.delete("/api/projects/my-exp")
         assert deleted.status_code == 200
@@ -531,3 +534,59 @@ def test_project_lifecycle_endpoints(monkeypatch, tmp_path):
 
         cannot_delete_default = client.delete("/api/projects/default")
         assert cannot_delete_default.status_code == 400
+
+
+def test_project_switch_isolates_records(monkeypatch, tmp_path):
+    projects_dir = tmp_path / "projects"
+    monkeypatch.delenv("HF_EXPORTER_DB_PATH", raising=False)
+    monkeypatch.setattr(projects, "PROJECTS_DIR", projects_dir)
+    monkeypatch.setattr(projects, "ACTIVE_FILE", projects_dir / "_active")
+    monkeypatch.setattr(projects, "LEGACY_DB_PATH", tmp_path / "hf_exporter.db")
+
+    with TestClient(web.app) as client:
+        create_default_note = client.post(
+            "/api/notes/org/default-model",
+            json={
+                "role": "main",
+                "category": "llm-stack",
+                "model_type": "GGUF",
+                "ranking": 8,
+                "note_text": "Default project note",
+                "pros": "",
+                "cons": "",
+                "context_text": "",
+            },
+        )
+        assert create_default_note.status_code == 201
+
+        created = client.post(
+            "/api/projects",
+            json={"displayName": "Empty Project", "slug": "empty-project", "autoActivate": True},
+        )
+        assert created.status_code == 201
+        assert created.json()["isActive"] is True
+
+        records_summary = client.get("/api/records/summary")
+        assert records_summary.status_code == 200
+        assert records_summary.json()["totalRecords"] == 0
+        assert records_summary.json()["activeProject"] == "empty-project"
+
+        records_entries = client.get("/api/records/entries")
+        assert records_entries.status_code == 200
+        assert records_entries.json()["meta"]["total"] == 0
+        assert records_entries.json()["items"] == []
+
+        default_notes_in_new_project = client.get("/api/notes/org/default-model")
+        assert default_notes_in_new_project.status_code == 200
+        assert default_notes_in_new_project.json()["items"] == []
+
+        switch_back = client.post("/api/projects/default/activate")
+        assert switch_back.status_code == 200
+
+        default_records_summary = client.get("/api/records/summary")
+        assert default_records_summary.status_code == 200
+        assert default_records_summary.json()["totalRecords"] == 1
+
+        default_notes = client.get("/api/notes/org/default-model")
+        assert default_notes.status_code == 200
+        assert len(default_notes.json()["items"]) == 1

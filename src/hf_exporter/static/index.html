@@ -1439,6 +1439,7 @@
 
     initSiteSettings();
 
+    const PROJECT_SWITCH_KEY = "hfExporterProjectSwitch";
     const STORAGE_KEY = "hfExporterState";
     const DEBOUNCE_MS = 300;
 
@@ -1698,6 +1699,26 @@
       state.page = Number(getValue("page", "1")) || 1;
       state.cacheKey = getValue("cacheKey");
       state.hasData = Boolean(state.cacheKey);
+    }
+
+    async function handleProjectSwitch(projectName = "") {
+      state.hasData = false;
+      state.cacheKey = "";
+      state.page = 1;
+      state.totalPages = 1;
+      state.activeModel = null;
+      state.activeNoteDrawerModel = null;
+      queryInput.value = "";
+      resultsBody.innerHTML = "";
+      statusEl.textContent = "No results loaded.";
+      setError("");
+      setMessage(projectName ? `Switched to ${projectName}. Run a search to load results.` : "Project changed. Run a search to load results.");
+      localStorage.removeItem(STORAGE_KEY);
+      history.replaceState(null, "", window.location.pathname);
+      closeDetailPanel();
+      await loadActiveProjectLabel();
+      await ensureNoteOptionsLoaded();
+      applyStateToInputs();
     }
 
     function toQueryParams(includePaging = true) {
@@ -2268,6 +2289,22 @@
         return;
       }
       closeDetailPanel();
+    });
+
+    window.addEventListener("storage", (event) => {
+      if (event.key !== PROJECT_SWITCH_KEY || !event.newValue) {
+        return;
+      }
+      try {
+        const payload = JSON.parse(event.newValue);
+        handleProjectSwitch(payload.projectName || payload.projectId || "").catch((error) => {
+          setError(error.message);
+        });
+      } catch {
+        handleProjectSwitch().catch((error) => {
+          setError(error.message);
+        });
+      }
     });
 
     document.getElementById("note-drawer-close").addEventListener("click", closeNoteDrawer);

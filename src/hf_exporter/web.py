@@ -343,6 +343,7 @@ def projects_page() -> FileResponse:
 class ProjectCreateRequest(BaseModel):
     displayName: str = Field(min_length=1, max_length=120)
     slug: str | None = None
+    autoActivate: bool = True
 
 
 @app.get("/api/projects")
@@ -353,7 +354,11 @@ def api_list_projects() -> dict[str, Any]:
 @app.post("/api/projects", status_code=201)
 def api_create_project(payload: ProjectCreateRequest) -> dict[str, Any]:
     try:
-        return create_project(display_name=payload.displayName, slug=payload.slug)
+        return create_project(
+            display_name=payload.displayName,
+            slug=payload.slug,
+            auto_activate=payload.autoActivate,
+        )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
