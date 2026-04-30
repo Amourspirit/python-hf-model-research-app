@@ -16,10 +16,16 @@ from hf_exporter.notes_store import (
     CATEGORY_OPTIONS,
     MODEL_TYPE_OPTIONS,
     ROLE_OPTIONS,
+    add_custom_category,
+    add_custom_role,
     create_note,
+    delete_custom_category,
+    delete_custom_role,
     delete_note,
     delete_notes_for_model,
     find_matching_model_ids,
+    get_all_categories,
+    get_all_roles,
     get_database_path,
     get_note,
     get_note_options,
@@ -93,10 +99,11 @@ class NoteCreateRequest(BaseModel):
 
     @model_validator(mode="after")
     def validate_payload(self) -> "NoteCreateRequest":
-        if self.role not in ROLE_OPTIONS:
-            raise ValueError("Invalid role")
-        if self.category not in CATEGORY_OPTIONS:
-            raise ValueError("Invalid category")
+        opts = get_note_options()
+        if self.role not in opts["roles"]:
+            raise ValueError(f"Invalid role: {self.role!r}")
+        if self.category not in opts["categories"]:
+            raise ValueError(f"Invalid category: {self.category!r}")
         if self.model_type not in MODEL_TYPE_OPTIONS:
             raise ValueError("Invalid model_type")
         if not any([
@@ -121,10 +128,11 @@ class NoteUpdateRequest(BaseModel):
 
     @model_validator(mode="after")
     def validate_payload(self) -> "NoteUpdateRequest":
-        if self.role is not None and self.role not in ROLE_OPTIONS:
-            raise ValueError("Invalid role")
-        if self.category is not None and self.category not in CATEGORY_OPTIONS:
-            raise ValueError("Invalid category")
+        opts = get_note_options()
+        if self.role is not None and self.role not in opts["roles"]:
+            raise ValueError(f"Invalid role: {self.role!r}")
+        if self.category is not None and self.category not in opts["categories"]:
+            raise ValueError(f"Invalid category: {self.category!r}")
         if self.model_type is not None and self.model_type not in MODEL_TYPE_OPTIONS:
             raise ValueError("Invalid model_type")
         if not any(
@@ -427,6 +435,58 @@ def records_entries(
     )
     payload["meta"]["databasePath"] = str(get_database_path())
     return payload
+
+
+@app.get("/api/roles")
+def list_roles() -> dict[str, Any]:
+    """Get all available roles (built-in and custom)."""
+    return {"items": get_all_roles()}
+
+
+@app.post("/api/roles", status_code=201)
+def create_role(payload: dict[str, str]) -> dict[str, Any]:
+    """Create a new custom role."""
+    name = payload.get("name", "").strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Role name is required")
+    try:
+        return add_custom_role(name)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.delete("/api/roles/{role_id}")
+def remove_role(role_id: str) -> dict[str, str]:
+    """Delete a custom role."""
+    if not delete_custom_role(role_id):
+        raise HTTPException(status_code=404, detail="Role not found")
+    return {"message": "Role deleted"}
+
+
+@app.get("/api/categories")
+def list_categories() -> dict[str, Any]:
+    """Get all available categories (built-in and custom)."""
+    return {"items": get_all_categories()}
+
+
+@app.post("/api/categories", status_code=201)
+def create_category(payload: dict[str, str]) -> dict[str, Any]:
+    """Create a new custom category."""
+    name = payload.get("name", "").strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Category name is required")
+    try:
+        return add_custom_category(name)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.delete("/api/categories/{category_id}")
+def remove_category(category_id: str) -> dict[str, str]:
+    """Delete a custom category."""
+    if not delete_custom_category(category_id):
+        raise HTTPException(status_code=404, detail="Category not found")
+    return {"message": "Category deleted"}
 
 
 @app.get("/api/models/{model_id:path}")

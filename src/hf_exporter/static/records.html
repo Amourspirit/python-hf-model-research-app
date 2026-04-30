@@ -568,6 +568,169 @@
         flex-direction: column;
       }
     }
+
+    .management-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.5);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+      z-index: 50;
+    }
+
+    .management-backdrop.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .management-modal {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0.95);
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.2s ease;
+      z-index: 60;
+      width: 90%;
+      max-width: 500px;
+      max-height: 85vh;
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: var(--shadow-lg);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .management-modal.open {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translate(-50%, -50%) scale(1);
+    }
+
+    .management-header {
+      padding: 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .management-title {
+      margin: 0;
+      font-size: 1.1rem;
+      font-weight: 700;
+    }
+
+    .management-close {
+      background: transparent;
+      border: none;
+      font-size: 1.2rem;
+      cursor: pointer;
+      color: var(--text-tertiary);
+      padding: 4px 8px;
+      border-radius: 6px;
+    }
+
+    .management-close:hover {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+    }
+
+    .management-body {
+      padding: 20px;
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .management-section {
+      margin-bottom: 24px;
+    }
+
+    .management-section:last-child {
+      margin-bottom: 0;
+    }
+
+    .management-section-title {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 12px;
+    }
+
+    .management-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .management-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 12px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.9rem;
+    }
+
+    .management-item.builtin {
+      opacity: 0.6;
+    }
+
+    .management-item-name {
+      flex: 1;
+    }
+
+    .management-item-delete {
+      background: var(--danger);
+      color: white;
+      border: none;
+      padding: 4px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      transition: var(--transition);
+    }
+
+    .management-item-delete:hover {
+      background: var(--danger-hover);
+    }
+
+    .management-input {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .management-input input {
+      flex: 1;
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 0.9rem;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+    }
+
+    .management-input button {
+      padding: 8px 12px;
+      background: var(--accent);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 600;
+      transition: var(--transition);
+    }
+
+    .management-input button:hover {
+      background: var(--accent-hover);
+    }
   </style>
 </head>
 <body>
@@ -579,6 +742,7 @@
       </div>
       <div class="header-actions">
         <a class="link-btn secondary" href="/">Search Page</a>
+        <button id="manage-roles-categories" class="secondary" title="Manage roles and categories">⚙️ Manage</button>
         <div class="theme-toggle" id="theme-toggle">
           <button id="light-mode" class="active" title="Light mode">☀️</button>
           <button id="dark-mode" title="Dark mode">🌙</button>
@@ -686,6 +850,15 @@
     </div>
   </div>
 
+  <div id="management-backdrop" class="management-backdrop"></div>
+  <div id="management-modal" class="management-modal" aria-hidden="true" role="dialog" aria-modal="true">
+    <div class="management-header">
+      <h2 class="management-title">Manage Roles & Categories</h2>
+      <button id="management-close" class="management-close" title="Close">✕</button>
+    </div>
+    <div class="management-body" id="management-body"></div>
+  </div>
+
   <div id="entry-detail-backdrop" class="entry-detail-backdrop"></div>
   <aside id="entry-detail-panel" class="entry-detail-panel" aria-hidden="true" role="dialog" aria-modal="true">
     <div class="detail-panel-header">
@@ -789,6 +962,9 @@
     const detailPanelEl = document.getElementById("entry-detail-panel");
     const detailBackdropEl = document.getElementById("entry-detail-backdrop");
     const detailPanelBodyEl = document.getElementById("detail-panel-body");
+    const managementModalEl = document.getElementById("management-modal");
+    const managementBackdropEl = document.getElementById("management-backdrop");
+    const managementBodyEl = document.getElementById("management-body");
 
     function esc(v) {
       return String(v ?? "")
@@ -946,7 +1122,11 @@
 
       if (!response.ok) {
         const err = await response.json().catch(() => ({}));
-        throw new Error(err.detail || "Failed to save entry");
+        const detail = err.detail;
+        const message = Array.isArray(detail)
+          ? detail.map(e => e.msg || String(e)).join("; ")
+          : (detail || "Failed to save entry");
+        throw new Error(message);
       }
 
       closeDrawer();
@@ -1295,11 +1475,151 @@
       detailPanelEl.setAttribute("aria-hidden", "true");
     }
 
+    function closeManagement() {
+      managementModalEl.classList.remove("open");
+      managementBackdropEl.classList.remove("open");
+      managementModalEl.setAttribute("aria-hidden", "true");
+    }
+
+    async function renderManagementContent() {
+      try {
+        const [rolesRes, catsRes] = await Promise.all([
+          fetch("/api/roles"),
+          fetch("/api/categories")
+        ]);
+        const rolesData = await rolesRes.json();
+        const catsData = await catsRes.json();
+        const roles = rolesData.items || [];
+        const categories = catsData.items || [];
+
+        managementBodyEl.innerHTML = `
+          <div class="management-section">
+            <div class="management-section-title">Roles</div>
+            <div class="management-list" id="roles-list">
+              ${roles.map(r => `
+                <div class="management-item ${r.isBuiltin ? 'builtin' : ''}">
+                  <div class="management-item-name">${esc(r.name)}</div>
+                  ${r.isBuiltin ? '<span style="font-size: 0.75rem; color: var(--text-tertiary);">Built-in</span>' : `<button class="management-item-delete" data-role-id="${esc(r.id)}">Delete</button>`}
+                </div>
+              `).join('')}
+            </div>
+            <div class="management-input">
+              <input type="text" id="new-role-input" placeholder="Add new role" />
+              <button id="add-role-btn">Add</button>
+            </div>
+          </div>
+          <div class="management-section">
+            <div class="management-section-title">Categories</div>
+            <div class="management-list" id="categories-list">
+              ${categories.map(c => `
+                <div class="management-item ${c.isBuiltin ? 'builtin' : ''}">
+                  <div class="management-item-name">${esc(c.name)}</div>
+                  ${c.isBuiltin ? '<span style="font-size: 0.75rem; color: var(--text-tertiary);">Built-in</span>' : `<button class="management-item-delete" data-category-id="${esc(c.id)}">Delete</button>`}
+                </div>
+              `).join('')}
+            </div>
+            <div class="management-input">
+              <input type="text" id="new-category-input" placeholder="Add new category" />
+              <button id="add-category-btn">Add</button>
+            </div>
+          </div>
+        `;
+
+        document.getElementById("add-role-btn").addEventListener("click", async () => {
+          const input = document.getElementById("new-role-input");
+          const name = input.value.trim();
+          if (!name) return;
+          try {
+            const res = await fetch("/api/roles", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ name })
+            });
+            if (!res.ok) {
+              const err = await res.json().catch(() => ({}));
+              throw new Error(err.detail || "Failed to add role");
+            }
+            input.value = "";
+            await Promise.all([renderManagementContent(), loadOptions()]);
+            await fetchEntries();
+            setMessage("Role added successfully");
+          } catch (error) {
+            setMessage(error.message, "error");
+          }
+        });
+
+        document.getElementById("add-category-btn").addEventListener("click", async () => {
+          const input = document.getElementById("new-category-input");
+          const name = input.value.trim();
+          if (!name) return;
+          try {
+            const res = await fetch("/api/categories", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ name })
+            });
+            if (!res.ok) {
+              const err = await res.json().catch(() => ({}));
+              throw new Error(err.detail || "Failed to add category");
+            }
+            input.value = "";
+            await Promise.all([renderManagementContent(), loadOptions()]);
+            await fetchEntries();
+            setMessage("Category added successfully");
+          } catch (error) {
+            setMessage(error.message, "error");
+          }
+        });
+
+        for (const btn of managementBodyEl.querySelectorAll("button[data-role-id]")) {
+          btn.addEventListener("click", async () => {
+            const roleId = btn.getAttribute("data-role-id");
+            try {
+              const res = await fetch(`/api/roles/${encodeURIComponent(roleId)}`, { method: "DELETE" });
+              if (!res.ok) throw new Error("Failed to delete role");
+              await Promise.all([renderManagementContent(), loadOptions()]);
+              await fetchEntries();
+              setMessage("Role deleted successfully");
+            } catch (error) {
+              setMessage(error.message, "error");
+            }
+          });
+        }
+
+        for (const btn of managementBodyEl.querySelectorAll("button[data-category-id]")) {
+          btn.addEventListener("click", async () => {
+            const categoryId = btn.getAttribute("data-category-id");
+            try {
+              const res = await fetch(`/api/categories/${encodeURIComponent(categoryId)}`, { method: "DELETE" });
+              if (!res.ok) throw new Error("Failed to delete category");
+              await Promise.all([renderManagementContent(), loadOptions()]);
+              await fetchEntries();
+              setMessage("Category deleted successfully");
+            } catch (error) {
+              setMessage(error.message, "error");
+            }
+          });
+        }
+      } catch (error) {
+        setMessage(error.message, "error");
+      }
+    }
+
+    function openManagement() {
+      renderManagementContent();
+      managementModalEl.classList.add("open");
+      managementBackdropEl.classList.add("open");
+      managementModalEl.setAttribute("aria-hidden", "false");
+    }
+
     document.getElementById("cancel-edit").addEventListener("click", closeDrawer);
     document.getElementById("drawer-close").addEventListener("click", closeDrawer);
     document.getElementById("entry-detail-close").addEventListener("click", closeEntryDetail);
+    document.getElementById("management-close").addEventListener("click", closeManagement);
+    document.getElementById("manage-roles-categories").addEventListener("click", openManagement);
     drawerBackdropEl.addEventListener("click", closeDrawer);
     detailBackdropEl.addEventListener("click", closeEntryDetail);
+    managementBackdropEl.addEventListener("click", closeManagement);
 
     document.getElementById("prev-page").addEventListener("click", async () => {
       if (state.page <= 1) return;

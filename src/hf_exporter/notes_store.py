@@ -47,9 +47,13 @@ def get_database_path() -> Path:
 
 
 def get_note_options() -> dict[str, list[str]]:
+    with _get_connection() as connection:
+        custom_roles = [row["name"] for row in connection.execute("SELECT name FROM custom_roles ORDER BY name").fetchall()]
+        custom_categories = [row["name"] for row in connection.execute("SELECT name FROM custom_categories ORDER BY name").fetchall()]
+    
     return {
-        "roles": ROLE_OPTIONS,
-        "categories": CATEGORY_OPTIONS,
+        "roles": ROLE_OPTIONS + custom_roles,
+        "categories": CATEGORY_OPTIONS + custom_categories,
         "modelTypes": MODEL_TYPE_OPTIONS,
     }
 
@@ -98,6 +102,18 @@ def _initialize_database(connection: sqlite3.Connection) -> None:
 
         CREATE INDEX IF NOT EXISTS idx_model_notes_created_at
             ON model_notes(created_at DESC);
+
+        CREATE TABLE IF NOT EXISTS custom_roles (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL UNIQUE,
+            created_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS custom_categories (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL UNIQUE,
+            created_at TEXT NOT NULL
+        );
         """
     )
     try:
@@ -570,3 +586,93 @@ def _row_to_note(row: sqlite3.Row) -> dict[str, Any]:
         "createdAt": row["created_at"],
         "updatedAt": row["updated_at"],
     }
+
+
+def get_all_roles() -> list[dict[str, Any]]:
+    """Get all available roles (built-in and custom)."""
+    with _get_connection() as connection:
+        custom_roles = connection.execute("SELECT id, name, created_at FROM custom_roles ORDER BY name").fetchall()
+    
+    # Built-in roles
+    builtin_roles = [{"id": None, "name": name, "created_at": None, "isBuiltin": True} for name in ROLE_OPTIONS]
+    # Custom roles
+    custom_list = [{"id": row["id"], "name": row["name"], "created_at": row["created_at"], "isBuiltin": False} for row in custom_roles]
+    
+    return builtin_roles + custom_list
+
+
+def get_all_categories() -> list[dict[str, Any]]:
+    """Get all available categories (built-in and custom)."""
+    with _get_connection() as connection:
+        custom_cats = connection.execute("SELECT id, name, created_at FROM custom_categories ORDER BY name").fetchall()
+    
+    # Built-in categories
+    builtin_cats = [{"id": None, "name": name, "created_at": None, "isBuiltin": True} for name in CATEGORY_OPTIONS]
+    # Custom categories
+    custom_list = [{"id": row["id"], "name": row["name"], "created_at": row["created_at"], "isBuiltin": False} for row in custom_cats]
+    
+    return builtin_cats + custom_list
+
+
+def add_custom_role(name: str) -> dict[str, Any]:
+    """Add a new custom role."""
+    name = name.strip()
+    if not name:
+        raise ValueError("Role name cannot be empty")
+    if name in ROLE_OPTIONS:
+        raise ValueError(f"Role '{name}' already exists as a built-in role")
+    
+    role_id = str(uuid.uuid4())
+    now_iso = datetime.now(timezone.utc).isoformat()
+    
+    with _get_connection() as connection:
+        try:
+            connection.execute(
+                "INSERT INTO custom_roles (id, name, created_at) VALUES (?, ?, ?)",
+                (role_id, name, now_iso)
+            )
+            connection.commit()
+        except sqlite3.IntegrityError:
+            raise ValueError(f"Role '{name}' already exists")
+    
+    return {"id": role_id, "name": name, "created_at": now_iso, "isBuiltin": False}
+
+
+def add_custom_category(name: str) -> dict[str, Any]:
+    """Add a new custom category."""
+    name = name.strip()
+    if not name:
+        raise ValueError("Category name cannot be empty")
+    if name in CATEGORY_OPTIONS:
+        raise ValueError(f"Category '{name}' already exists as a built-in category")
+    
+    cat_id = str(uuid.uuid4())
+    now_iso = datetime.now(timezone.utc).isoformat()
+    
+    with _get_connection() as connection:
+        try:
+            connection.execute(
+                "INSERT INTO custom_categories (id, name, created_at) VALUES (?, ?, ?)",
+                (cat_id, name, now_iso)
+            )
+            connection.commit()
+        except sqlite3.IntegrityError:
+            raise ValueError(f"Category '{name}' already exists")
+    
+    return {"id": cat_id, "name": name, "created_at": now_iso, "isBuiltin": False}
+
+
+def delete_custom_role(role_id: str) -> bool:
+    """Delete a custom role."""
+    with _get_connection() as connection:
+        result = connection.execute("DELETE FROM custom_roles WHERE id = ?", (role_id,))
+        connection.commit()
+    return result.rowcount > 0
+
+
+def delete_custom_category(category_id: str) -> bool:
+    """Delete a custom category."""
+    with _get_connection() as connection:
+        result = connection.execute("DELETE FROM custom_categories WHERE id = ?", (category_id,))
+        connection.commit()
+    return result.rowcount > 0
