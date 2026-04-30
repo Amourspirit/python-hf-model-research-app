@@ -227,6 +227,19 @@
       margin-top: 4px;
     }
 
+    .site-width-presets {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .site-width-presets button {
+      padding: 6px 10px;
+      font-size: 0.8rem;
+      border-radius: 999px;
+    }
+
     .site-settings-panel-footer {
       padding: 14px 18px;
       border-top: 1px solid var(--border);
@@ -1209,8 +1222,15 @@
       </div>
       <div class="field">
         <label for="site-max-width">Max Page Width (px)</label>
-        <input id="site-max-width" type="range" min="960" max="1920" step="10" />
+        <input id="site-max-width" type="range" min="960" max="3200" step="10" />
         <div class="site-width-value">Current: <strong id="site-max-width-value">1280px</strong></div>
+        <div class="site-width-presets">
+          <button class="secondary" type="button" data-site-width-preset="1280">Laptop 1280</button>
+          <button class="secondary" type="button" data-site-width-preset="1440">FHD 1440</button>
+          <button class="secondary" type="button" data-site-width-preset="1720">2K/QHD 1720</button>
+          <button class="secondary" type="button" data-site-width-preset="2160">4K 2160</button>
+          <button class="secondary" type="button" data-site-width-preset="2560">Ultrawide 2560</button>
+        </div>
       </div>
       <div class="site-settings-meta">
         Selected mode: <strong id="site-selected-theme">Auto (System)</strong><br />
@@ -1228,7 +1248,7 @@
     const SITE_SETTINGS_KEY = "hfSiteSettings";
     const SITE_SETTINGS_VERSION = 1;
     const SITE_MIN_WIDTH = 960;
-    const SITE_MAX_WIDTH = 1920;
+    const SITE_MAX_WIDTH = 3200;
     const SITE_DEFAULTS = {
       version: SITE_SETTINGS_VERSION,
       themeMode: "auto",
@@ -1377,6 +1397,20 @@
       document.getElementById("site-max-width").addEventListener("input", (event) => {
         const value = normalizeWidth(event.target.value);
         document.getElementById("site-max-width-value").textContent = `${value}px`;
+      });
+      document.querySelectorAll("button[data-site-width-preset]").forEach((button) => {
+        button.addEventListener("click", () => {
+          const preset = normalizeWidth(button.getAttribute("data-site-width-preset"));
+          document.getElementById("site-max-width").value = String(preset);
+          document.getElementById("site-max-width-value").textContent = `${preset}px`;
+          const nextSettings = normalizeSiteSettings({
+            themeMode: document.getElementById("site-theme-mode").value,
+            maxPageWidth: preset,
+          });
+          writeSiteSettings(nextSettings);
+          applySiteSettings(nextSettings);
+          showSiteSettingsMessage(`Preset applied: ${preset}px.`, "success");
+        });
       });
       document.getElementById("site-settings-open").addEventListener("click", openSiteSettingsPanel);
       document.getElementById("site-settings-close").addEventListener("click", closeSiteSettingsPanel);
