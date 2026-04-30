@@ -39,15 +39,17 @@ MODEL_TYPE_OPTIONS = [
 ]
 
 
-def get_database_path() -> Path:
+def get_database_path(project_id: str | None = None) -> Path:
     configured_path = os.getenv("HF_EXPORTER_DB_PATH")
     if configured_path:
         return Path(configured_path).expanduser()
-    return Path(__file__).resolve().parents[2] / "storage" / "hf_exporter.db"
+    from hf_exporter.projects import get_active_project_id, get_project_db_path
+    slug = project_id if project_id else get_active_project_id()
+    return get_project_db_path(slug)
 
 
-def get_note_options() -> dict[str, list[str]]:
-    with _get_connection() as connection:
+def get_note_options(project_id: str | None = None) -> dict[str, list[str]]:
+    with _get_connection(project_id=project_id) as connection:
         custom_roles = [row["name"] for row in connection.execute("SELECT name FROM custom_roles ORDER BY name").fetchall()]
         custom_categories = [row["name"] for row in connection.execute("SELECT name FROM custom_categories ORDER BY name").fetchall()]
     
@@ -58,8 +60,8 @@ def get_note_options() -> dict[str, list[str]]:
     }
 
 
-def _get_connection() -> sqlite3.Connection:
-    database_path = get_database_path()
+def _get_connection(project_id: str | None = None) -> sqlite3.Connection:
+    database_path = get_database_path(project_id=project_id)
     database_path.parent.mkdir(parents=True, exist_ok=True)
 
     connection = sqlite3.connect(database_path)

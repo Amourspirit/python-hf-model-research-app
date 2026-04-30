@@ -1011,9 +1011,10 @@
     <div class="header">
       <div class="header-content">
         <h1>🤗 Model Exporter</h1>
-        <p class="subtitle">Search Hugging Face models with advanced filtering and export</p>
+        <p class="subtitle">Search Hugging Face models · project: <strong id="active-project-name">default</strong></p>
       </div>
       <div class="header-actions">
+        <a class="nav-link" href="/projects">📁 Projects</a>
         <a class="nav-link" href="/records">Records Manager</a>
         <button id="site-settings-open" class="settings-trigger" title="Site settings" aria-label="Open site settings">⚙️</button>
       </div>
@@ -1488,6 +1489,7 @@
     const minRankingInput = document.getElementById("min-ranking");
     const maxRankingInput = document.getElementById("max-ranking");
     const noteTextInput = document.getElementById("note-text");
+    const activeProjectNameEl = document.getElementById("active-project-name");
     const messageEl = document.getElementById("message");
     const errorEl = document.getElementById("error");
     const statusEl = document.getElementById("status");
@@ -1507,6 +1509,19 @@
       "export-filtered-json",
       "export-filtered-csv",
     ].map((id) => document.getElementById(id));
+
+    async function loadActiveProjectLabel() {
+      try {
+        const response = await fetch("/api/projects/active");
+        if (!response.ok) {
+          return;
+        }
+        const project = await response.json();
+        activeProjectNameEl.textContent = project.displayName || project.id || "default";
+      } catch {
+        // Keep fallback project label when request fails.
+      }
+    }
 
     function setLoading(isLoading) {
       state.isLoading = isLoading;
@@ -2270,6 +2285,7 @@
 
     (async () => {
       try {
+        await loadActiveProjectLabel();
         await ensureNoteOptionsLoaded();
         applyStateToInputs();
       } catch (error) {

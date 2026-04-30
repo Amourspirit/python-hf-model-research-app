@@ -126,6 +126,7 @@ Routes:
 
 - `http://localhost:8000`: Search and filter Hugging Face models. This page no longer shows the global stored-records summary.
 - `http://localhost:8000/records`: Full records management (list/filter/create/update/delete entries, plus model-level bulk delete).
+- `http://localhost:8000/projects`: Project management (create/list/activate/delete isolated projects).
 
 What the web app supports:
 
@@ -143,6 +144,9 @@ What the web app supports:
 - Model detail uses a slide-over entry drawer for create actions instead of embedding the full form directly in the detail panel.
 - Entry-level CRUD in the records manager plus model-level bulk delete.
 - Records-page create and edit actions use a right-side drawer so the records table stays visible while you work.
+- Multi-project isolation with a global active project.
+- Project lifecycle operations from the Projects page (create, activate, hard delete with confirmation).
+- Automatic bootstrap of a `default` project, including one-time migration from legacy `storage/hf_exporter.db` if present.
 
 Main API endpoints:
 
@@ -160,10 +164,22 @@ Main API endpoints:
 - `DELETE /api/notes/model/{model_id}`: deletes all entries for a model.
 - `GET /api/records/entries`: lists/filter/sorts/paginates record entries.
 - `GET /api/records/summary`: aggregate counts and top-model summaries for sidebars.
+- `GET /api/projects`: list all projects.
+- `POST /api/projects`: create a new project (`displayName`, optional `slug`).
+- `GET /api/projects/active`: get the active project.
+- `GET /api/projects/{project_id}`: get one project.
+- `POST /api/projects/{project_id}/activate`: activate a project globally for the running server.
+- `DELETE /api/projects/{project_id}`: hard-delete a project directory (cannot delete `default`).
 
 ## Persistent Storage
 
-SQLite note data is stored in `storage/hf_exporter.db` by default for local runs.
+SQLite note data is project-scoped by default:
+
+- `storage/projects/default/project.db`
+- `storage/projects/{slug}/project.db`
+
+On startup, the web server ensures a `default` project exists.
+If a legacy `storage/hf_exporter.db` file exists and `default` has no DB yet, it is copied into `storage/projects/default/project.db`.
 
 Override the database path with:
 

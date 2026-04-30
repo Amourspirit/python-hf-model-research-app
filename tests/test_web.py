@@ -4,6 +4,7 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
+from hf_exporter import projects
 from hf_exporter import web
 
 
@@ -488,5 +489,45 @@ def test_database_path_defaults_to_storage_directory(monkeypatch):
     monkeypatch.delenv("HF_EXPORTER_DB_PATH", raising=False)
     database_path = web.get_database_path()
     assert isinstance(database_path, Path)
-    assert database_path.name == "hf_exporter.db"
-    assert database_path.parent.name == "storage"
+    assert database_path.name == "project.db"
+    assert database_path.parent.parent.name == "projects"
+
+
+def test_projects_page_route_exists():
+    client = TestClient(web.app)
+    response = client.get("/projects")
+    assert response.status_code == 200
+
+
+def test_project_lifecycle_endpoints(monkeypatch, tmp_path):
+    projects_dir = tmp_path / "projects"
+    monkeypatch.setattr(projects, "PROJECTS_DIR", projects_dir)
+    monkeypatch.setattr(projects, "ACTIVE_FILE", projects_dir / "_active")
+    monkeypatch.setattr(projects, "LEGACY_DB_PATH", tmp_path / "hf_exporter.db")
+
+    with TestClient(web.app) as client:
+        # Lifespan startup should bootstrap default project.
+        listed = client.get("/api/projects")
+        assert listed.status_code == 200
+        items = listed.json()["items"]
+        assert any(item["id"] == "default" for item in items)
+
+        created = client.post("/api/projects", json={"displayName": "My Experiments", "slug": "my-exp"})
+        assert created.status_code == 201
+        assert created.json()["id"] == "my-exp"
+
+        activated = client.post("/api/projects/my-exp/activate")
+        assert activated.status_code == 200
+        assert activated.json()["id"] == "my-exp"
+        assert activated.json()["isActive"] is True
+
+        active = client.get("/api/projects/active")
+        assert active.status_code == 200
+        assert active.json()["id"] == "my-exp"
+
+        deleted = client.delete("/api/projects/my-exp")
+        assert deleted.status_code == 200
+        assert deleted.json()["status"] == "ok"
+
+        cannot_delete_default = client.delete("/api/projects/default")
+        assert cannot_delete_default.status_code == 400

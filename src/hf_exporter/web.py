@@ -4,6 +4,7 @@ import os
 import tempfile
 import time
 import uuid
+from contextlib import asynccontextmanager
 from pathlib import Path
 from threading import Lock
 from typing import Any, Literal
@@ -37,6 +38,15 @@ from hf_exporter.notes_store import (
     list_record_entries,
     update_note,
 )
+from hf_exporter.projects import (
+    bootstrap_default_project,
+    create_project,
+    delete_project,
+    get_active_project_id,
+    get_project,
+    list_projects,
+    set_active_project,
+)
 from hf_exporter.service import (
     MODEL_COLUMNS,
     export_rows,
@@ -50,8 +60,15 @@ BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
 INDEX_FILE = STATIC_DIR / "index.html"
 RECORDS_FILE = STATIC_DIR / "records.html"
+PROJECTS_FILE = STATIC_DIR / "projects.html"
 
-app = FastAPI(title="HF Model Exporter Web")
+@asynccontextmanager
+async def _lifespan(app: FastAPI):  # noqa: ARG001
+    bootstrap_default_project()
+    yield
+
+
+app = FastAPI(title="HF Model Exporter Web", lifespan=_lifespan)
 
 CACHE_TTL_SECONDS = 900
 
@@ -261,6 +278,7 @@ def _build_table_payload(rows: list[dict], state: TableState) -> dict:
             "sortBy": state.sort_by,
             "sortDir": state.sort_dir,
             "databasePath": str(get_database_path()),
+            "activeProject": get_active_project_id(),
         },
     }
 
@@ -311,6 +329,68 @@ def index() -> FileResponse:
 @app.get("/records")
 def records_page() -> FileResponse:
     return FileResponse(RECORDS_FILE)
+
+
+@app.get("/projects")
+def projects_page() -> FileResponse:
+    return FileResponse(PROJECTS_FILE)
+
+
+# ---------------------------------------------------------------------------
+# Project API
+# ---------------------------------------------------------------------------
+
+class ProjectCreateRequest(BaseModel):
+    displayName: str = Field(min_length=1, max_length=120)
+    slug: str | None = None
+
+
+@app.get("/api/projects")
+def api_list_projects() -> dict[str, Any]:
+    return {"items": list_projects()}
+
+
+@app.post("/api/projects", status_code=201)
+def api_create_project(payload: ProjectCreateRequest) -> dict[str, Any]:
+    try:
+        return create_project(display_name=payload.displayName, slug=payload.slug)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.get("/api/projects/active")
+def api_get_active_project() -> dict[str, Any]:
+    slug = get_active_project_id()
+    try:
+        return get_project(slug)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.get("/api/projects/{project_id}")
+def api_get_project(project_id: str) -> dict[str, Any]:
+    try:
+        return get_project(project_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.post("/api/projects/{project_id}/activate")
+def api_activate_project(project_id: str) -> dict[str, Any]:
+    try:
+        return set_active_project(project_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.delete("/api/projects/{project_id}")
+def api_delete_project(project_id: str) -> dict[str, str]:
+    try:
+        delete_project(project_id)
+    except ValueError as exc:
+        status = 400 if "default" in str(exc) else 404
+        raise HTTPException(status_code=status, detail=str(exc)) from exc
+    return {"status": "ok"}
 
 
 @app.get("/api/notes/options")
@@ -395,6 +475,7 @@ def delete_model_note_entries(model_id: str) -> dict[str, Any]:
 def records_summary() -> dict[str, Any]:
     summary = get_records_summary()
     summary["databasePath"] = str(get_database_path())
+    summary["activeProject"] = get_active_project_id()
     return summary
 
 
@@ -434,6 +515,7 @@ def records_entries(
         page_size=page_size,
     )
     payload["meta"]["databasePath"] = str(get_database_path())
+    payload["meta"]["activeProject"] = get_active_project_id()
     return payload
 
 

@@ -835,10 +835,11 @@
     <div class="header">
       <div class="header-copy">
         <h1>Model Records</h1>
-        <p>Browse local evaluation entries without losing the table context while creating or editing them.</p>
+        <p>Browse local evaluation entries without losing the table context while creating or editing them. · project: <strong id="active-project-name">default</strong></p>
       </div>
       <div class="header-actions">
         <a class="link-btn secondary" href="/">Search Page</a>
+        <a class="link-btn secondary" href="/projects">📁 Projects</a>
         <button id="manage-roles-categories" class="secondary" title="Manage roles and categories">⚙️ Manage</button>
         <button id="site-settings-open" class="settings-trigger" title="Site settings" aria-label="Open site settings">⚙️</button>
       </div>
@@ -1277,6 +1278,20 @@
     const managementModalEl = document.getElementById("management-modal");
     const managementBackdropEl = document.getElementById("management-backdrop");
     const managementBodyEl = document.getElementById("management-body");
+    const activeProjectNameEl = document.getElementById("active-project-name");
+
+    async function loadActiveProjectLabel() {
+      try {
+        const response = await fetch("/api/projects/active");
+        if (!response.ok) {
+          return;
+        }
+        const project = await response.json();
+        activeProjectNameEl.textContent = project.displayName || project.id || "default";
+      } catch {
+        // Keep fallback text.
+      }
+    }
 
     function esc(v) {
       return String(v ?? "")
@@ -1974,6 +1989,7 @@
 
     (async () => {
       try {
+        await loadActiveProjectLabel();
         await loadOptions();
         resetForm();
         await refreshAll();
