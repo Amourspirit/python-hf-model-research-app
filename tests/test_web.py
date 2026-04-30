@@ -277,6 +277,66 @@ def test_note_filters_affect_results(monkeypatch, tmp_path):
     assert body["items"][0]["note_count"] == 1
 
 
+def test_note_role_category_or_mode(monkeypatch, tmp_path):
+    monkeypatch.setenv("HF_EXPORTER_DB_PATH", str(tmp_path / "notes.db"))
+    monkeypatch.setattr(web, "query_models", lambda query, task=None, author=None, library=None: SAMPLE_ROWS)
+    client = TestClient(web.app)
+
+    search = client.post("/api/search", json={"query": "llama"})
+    cache_key = search.json()["cacheKey"]
+
+    client.post(
+        "/api/notes/org/a-model",
+        json={
+            "role": "main",
+            "category": "llm-stack",
+            "model_type": "GGUF",
+            "ranking": 8,
+            "note_text": "A",
+            "pros": "",
+            "cons": "",
+            "context_text": "",
+        },
+    )
+    client.post(
+        "/api/notes/org/b-model",
+        json={
+            "role": "candidate",
+            "category": "llm-stack",
+            "model_type": "Transformers",
+            "ranking": 7,
+            "note_text": "B",
+            "pros": "",
+            "cons": "",
+            "context_text": "",
+        },
+    )
+
+    and_result = client.get(
+        "/api/results",
+        params={
+            "cache_key": cache_key,
+            "note_role": "main",
+            "note_category": "llm-stack",
+            "note_role_category_mode": "and",
+        },
+    )
+    assert and_result.status_code == 200
+    assert and_result.json()["meta"]["totalFiltered"] == 1
+
+    or_result = client.get(
+        "/api/results",
+        params={
+            "cache_key": cache_key,
+            "note_role": "main",
+            "note_category": "llm-stack",
+            "note_role_category_mode": "or",
+        },
+    )
+    assert or_result.status_code == 200
+    assert or_result.json()["meta"]["totalFiltered"] == 2
+
+
 def test_export_json_includes_notes_and_csv_stays_flat(monkeypatch, tmp_path):
     monkeypatch.setenv("HF_EXPORTER_DB_PATH", str(tmp_path / "notes.db"))
     monkeypatch.setattr(web, "query_models", lambda query, task=None, author=None, library=None: SAMPLE_ROWS)
@@ -309,6 +369,119 @@ def test_export_json_includes_notes_and_csv_stays_flat(monkeypatch, tmp_path):
     assert csv_export.status_code == 200
     assert "notes" not in csv_export.text.splitlines()[0]
     assert "note_count" in csv_export.text.splitlines()[0]
+
+
+def test_note_entry_crud_and_model_bulk_delete(monkeypatch, tmp_path):
+    monkeypatch.setenv("HF_EXPORTER_DB_PATH", str(tmp_path / "notes.db"))
+    client = TestClient(web.app)
+
+    create_a = client.post(
+        "/api/notes/org/a-model",
+        json={
+            "role": "main",
+            "category": "llm-stack",
+            "model_type": "GGUF",
+            "ranking": 8,
+            "note_text": "Alpha",
+            "pros": "",
+            "cons": "",
+            "context_text": "",
+        },
+    )
+    create_b = client.post(
+        "/api/notes/org/a-model",
+        json={
+            "role": "candidate",
+            "category": "llm-stack",
+            "model_type": "Transformers",
+            "ranking": 6,
+            "note_text": "Beta",
+            "pros": "",
+            "cons": "",
+            "context_text": "",
+        },
+    )
+
+    note_id = create_a.json()["item"]["id"]
+    update_response = client.put(
+        f"/api/note-entries/{note_id}",
+        json={"ranking": 9, "pros": "Improved", "note_text": "Updated"},
+    )
+    assert update_response.status_code == 200
+    assert update_response.json()["item"]["ranking"] == 9
+
+    get_response = client.get(f"/api/note-entries/{note_id}")
+    assert get_response.status_code == 200
+    assert get_response.json()["pros"] == "Improved"
+
+    delete_entry = client.delete(f"/api/note-entries/{note_id}")
+    assert delete_entry.status_code == 200
+    assert delete_entry.json()["modelId"] == "org/a-model"
+
+    second_note_id = create_b.json()["item"]["id"]
+    assert client.get(f"/api/note-entries/{second_note_id}").status_code == 200
+
+    delete_model = client.delete("/api/notes/model/org/a-model")
+    assert delete_model.status_code == 200
+    assert delete_model.json()["deleted"] >= 1
+
+    after_delete = client.get("/api/notes/org/a-model")
+    assert after_delete.status_code == 200
+    assert after_delete.json()["items"] == []
+
+
+def test_records_summary_and_entries_endpoint(monkeypatch, tmp_path):
+    monkeypatch.setenv("HF_EXPORTER_DB_PATH", str(tmp_path / "notes.db"))
+    client = TestClient(web.app)
+
+    client.post(
+        "/api/notes/org/a-model",
+        json={
+            "role": "main",
+            "category": "llm-stack",
+            "model_type": "GGUF",
+            "ranking": 8,
+            "note_text": "Alpha",
+            "pros": "",
+            "cons": "",
+            "context_text": "",
+        },
+    )
+    client.post(
+        "/api/notes/org/b-model",
+        json={
+            "role": "candidate",
+            "category": "image-generation",
+            "model_type": "Transformers",
+            "ranking": 5,
+            "note_text": "Bravo",
+            "pros": "",
+            "cons": "",
+            "context_text": "",
+        },
+    )
+
+    summary = client.get("/api/records/summary")
+    assert summary.status_code == 200
+    summary_payload = summary.json()
+    assert summary_payload["totalRecords"] == 2
+    assert summary_payload["totalModels"] == 2
+    assert isinstance(summary_payload["topModels"], list)
+
+    entries = client.get(
+        "/api/records/entries",
+        params={"role": "main", "sort_by": "updated_at", "sort_dir": "desc", "page": 1, "page_size": 25},
+    )
+    assert entries.status_code == 200
+    entries_payload = entries.json()
+    assert entries_payload["meta"]["total"] == 1
+    assert entries_payload["items"][0]["modelId"] == "org/a-model"
+
+
+def test_records_page_route_exists():
+    client = TestClient(web.app)
+    response = client.get("/records")
+    assert response.status_code == 200
 
 
 def test_database_path_defaults_to_storage_directory(monkeypatch):

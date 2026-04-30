@@ -17,13 +17,19 @@ from hf_exporter.notes_store import (
     MODEL_TYPE_OPTIONS,
     ROLE_OPTIONS,
     create_note,
+    delete_note,
+    delete_notes_for_model,
     find_matching_model_ids,
     get_database_path,
+    get_note,
     get_note_options,
     get_note_summaries,
+    get_records_summary,
     has_note_filters,
     list_notes,
     list_notes_for_models,
+    list_record_entries,
+    update_note,
 )
 from hf_exporter.service import (
     MODEL_COLUMNS,
@@ -37,6 +43,7 @@ from hf_exporter.service import (
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
 INDEX_FILE = STATIC_DIR / "index.html"
+RECORDS_FILE = STATIC_DIR / "records.html"
 
 app = FastAPI(title="HF Model Exporter Web")
 
@@ -67,6 +74,7 @@ class TableState(BaseModel):
     note_text: str | None = None
     min_ranking: int | None = None
     max_ranking: int | None = None
+    note_role_category_mode: Literal["and", "or"] = "or"
     sort_by: str = "downloads"
     sort_dir: Literal["asc", "desc"] = "desc"
     page: int = 1
@@ -98,6 +106,41 @@ class NoteCreateRequest(BaseModel):
             self.context_text.strip(),
         ]):
             raise ValueError("At least one content field is required")
+        return self
+
+
+class NoteUpdateRequest(BaseModel):
+    role: str | None = None
+    category: str | None = None
+    model_type: str | None = None
+    ranking: int | None = Field(default=None, ge=1, le=10)
+    note_text: str | None = None
+    pros: str | None = None
+    cons: str | None = None
+    context_text: str | None = None
+
+    @model_validator(mode="after")
+    def validate_payload(self) -> "NoteUpdateRequest":
+        if self.role is not None and self.role not in ROLE_OPTIONS:
+            raise ValueError("Invalid role")
+        if self.category is not None and self.category not in CATEGORY_OPTIONS:
+            raise ValueError("Invalid category")
+        if self.model_type is not None and self.model_type not in MODEL_TYPE_OPTIONS:
+            raise ValueError("Invalid model_type")
+        if not any(
+            value is not None
+            for value in [
+                self.role,
+                self.category,
+                self.model_type,
+                self.ranking,
+                self.note_text,
+                self.pros,
+                self.cons,
+                self.context_text,
+            ]
+        ):
+            raise ValueError("At least one field is required")
         return self
 
 
@@ -173,6 +216,7 @@ def _filter_rows_by_notes(rows: list[dict[str, Any]], state: TableState) -> list
         min_ranking=state.min_ranking,
         max_ranking=state.max_ranking,
         text=state.note_text,
+        role_category_mode=state.note_role_category_mode,
     )
 
     if not matched_model_ids:
@@ -256,6 +300,11 @@ def index() -> FileResponse:
     return FileResponse(INDEX_FILE)
 
 
+@app.get("/records")
+def records_page() -> FileResponse:
+    return FileResponse(RECORDS_FILE)
+
+
 @app.get("/api/notes/options")
 def note_options() -> dict[str, list[str]]:
     return get_note_options()
@@ -286,6 +335,100 @@ def create_model_note(model_id: str, payload: NoteCreateRequest) -> dict[str, An
     return {"item": note, "items": notes, "summary": summary}
 
 
+@app.get("/api/note-entries/{note_id}")
+def get_note_entry(note_id: str) -> dict[str, Any]:
+    try:
+        return get_note(note_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.put("/api/note-entries/{note_id}")
+def update_note_entry(note_id: str, payload: NoteUpdateRequest) -> dict[str, Any]:
+    try:
+        item = update_note(
+            note_id=note_id,
+            role=payload.role,
+            category=payload.category,
+            model_type=payload.model_type,
+            ranking=payload.ranking,
+            note_text=payload.note_text,
+            pros=payload.pros,
+            cons=payload.cons,
+            context_text=payload.context_text,
+        )
+    except ValueError as exc:
+        status = 404 if "not found" in str(exc).lower() else 400
+        raise HTTPException(status_code=status, detail=str(exc)) from exc
+
+    model_id = str(item["modelId"])
+    notes = list_notes(model_id)
+    summary = get_note_summaries([model_id]).get(model_id, {"note_count": 0, "average_ranking": None})
+    return {"item": item, "items": notes, "summary": summary}
+
+
+@app.delete("/api/note-entries/{note_id}")
+def delete_note_entry(note_id: str) -> dict[str, Any]:
+    try:
+        model_id = delete_note(note_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    summary = get_note_summaries([model_id]).get(model_id, {"note_count": 0, "average_ranking": None})
+    return {"status": "ok", "modelId": model_id, "summary": summary}
+
+
+@app.delete("/api/notes/model/{model_id:path}")
+def delete_model_note_entries(model_id: str) -> dict[str, Any]:
+    deleted = delete_notes_for_model(model_id)
+    return {"status": "ok", "modelId": model_id, "deleted": deleted}
+
+
+@app.get("/api/records/summary")
+def records_summary() -> dict[str, Any]:
+    summary = get_records_summary()
+    summary["databasePath"] = str(get_database_path())
+    return summary
+
+
+@app.get("/api/records/entries")
+def records_entries(
+    role: str | None = None,
+    category: str | None = None,
+    model_type: str | None = None,
+    text: str | None = None,
+    min_ranking: int | None = Query(default=None, ge=1, le=10),
+    max_ranking: int | None = Query(default=None, ge=1, le=10),
+    role_category_mode: Literal["and", "or"] = "and",
+    sort_by: Literal[
+        "updated_at",
+        "created_at",
+        "model_id",
+        "role",
+        "category",
+        "model_type",
+        "ranking",
+    ] = "updated_at",
+    sort_dir: Literal["asc", "desc"] = "desc",
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=25, ge=1, le=250),
+) -> dict[str, Any]:
+    payload = list_record_entries(
+        role=role,
+        category=category,
+        model_type=model_type,
+        text=text,
+        min_ranking=min_ranking,
+        max_ranking=max_ranking,
+        role_category_mode=role_category_mode,
+        sort_by=sort_by,
+        sort_dir=sort_dir,
+        page=page,
+        page_size=page_size,
+    )
+    payload["meta"]["databasePath"] = str(get_database_path())
+    return payload
+
+
 @app.post("/api/search")
 def search_models(payload: SearchRequest) -> dict:
     _purge_expired_cache()
@@ -314,6 +457,7 @@ def get_results(
     note_text: str | None = None,
     min_ranking: int | None = Query(default=None, ge=1, le=10),
     max_ranking: int | None = Query(default=None, ge=1, le=10),
+    note_role_category_mode: Literal["and", "or"] = "or",
     sort_by: str = Query(default="downloads"),
     sort_dir: Literal["asc", "desc"] = "desc",
     page: int = Query(default=1, ge=1),
@@ -338,6 +482,7 @@ def get_results(
         note_text=note_text,
         min_ranking=min_ranking,
         max_ranking=max_ranking,
+        note_role_category_mode=note_role_category_mode,
         sort_by=sort_by,
         sort_dir=sort_dir,
         page=page,
@@ -382,6 +527,7 @@ def export_filtered(
     note_text: str | None = None,
     min_ranking: int | None = Query(default=None, ge=1, le=10),
     max_ranking: int | None = Query(default=None, ge=1, le=10),
+    note_role_category_mode: Literal["and", "or"] = "or",
     sort_by: str = Query(default="downloads"),
     sort_dir: Literal["asc", "desc"] = "desc",
 ) -> FileResponse:
@@ -401,6 +547,7 @@ def export_filtered(
         note_text=note_text,
         min_ranking=min_ranking,
         max_ranking=max_ranking,
+        note_role_category_mode=note_role_category_mode,
         sort_by=sort_by,
         sort_dir=sort_dir,
     )

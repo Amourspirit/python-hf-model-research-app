@@ -95,6 +95,102 @@
       gap: 16px;
     }
 
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .nav-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 14px;
+      border-radius: 8px;
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      text-decoration: none;
+      font-size: 0.88rem;
+      font-weight: 600;
+    }
+
+    .nav-link:hover {
+      border-color: var(--accent-primary);
+      color: var(--accent-primary);
+    }
+
+    .page-layout {
+      display: grid;
+      grid-template-columns: minmax(250px, 300px) minmax(0, 1fr);
+      gap: 20px;
+      align-items: start;
+    }
+
+    .content-stack {
+      min-width: 0;
+    }
+
+    .summary-stats {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .summary-stat {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px;
+    }
+
+    .summary-stat-label {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-tertiary);
+      margin-bottom: 4px;
+      font-weight: 700;
+    }
+
+    .summary-stat-value {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .summary-list {
+      list-style: none;
+      display: grid;
+      gap: 8px;
+      max-height: 420px;
+      overflow: auto;
+    }
+
+    .summary-item {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 10px;
+      background: var(--bg-secondary);
+    }
+
+    .summary-item-model {
+      font-size: 0.84rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      word-break: break-word;
+    }
+
+    .summary-item-meta {
+      margin-top: 4px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      color: var(--text-secondary);
+      font-size: 0.78rem;
+    }
+
     .header-content h1 {
       font-size: 2rem;
       font-weight: 700;
@@ -782,6 +878,12 @@
       flex-shrink: 0;
     }
 
+    @media (max-width: 960px) {
+      .page-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
     @media (max-width: 640px) {
       .panel-grid {
         grid-template-columns: 1fr;
@@ -796,11 +898,34 @@
         <h1>🤗 Model Exporter</h1>
         <p class="subtitle">Search Hugging Face models with advanced filtering and export</p>
       </div>
-      <div class="theme-toggle" id="theme-toggle">
-        <button id="light-mode" class="active" title="Light mode">☀️</button>
-        <button id="dark-mode" title="Dark mode">🌙</button>
+      <div class="header-actions">
+        <a class="nav-link" href="/records">Records Manager</a>
+        <div class="theme-toggle" id="theme-toggle">
+          <button id="light-mode" class="active" title="Light mode">☀️</button>
+          <button id="dark-mode" title="Dark mode">🌙</button>
+        </div>
       </div>
     </div>
+
+    <div class="page-layout">
+      <aside class="card">
+        <h2 style="font-size: 1rem; margin-bottom: 10px;">Stored Records</h2>
+        <div class="summary-stats">
+          <div class="summary-stat">
+            <div class="summary-stat-label">Entries</div>
+            <div class="summary-stat-value" id="summary-total-records">0</div>
+          </div>
+          <div class="summary-stat">
+            <div class="summary-stat-label">Models</div>
+            <div class="summary-stat-value" id="summary-total-models">0</div>
+          </div>
+        </div>
+        <ul class="summary-list" id="summary-top-models">
+          <li class="summary-item">No stored records yet.</li>
+        </ul>
+      </aside>
+
+      <div class="content-stack">
 
     <div class="card">
       <div class="grid">
@@ -918,6 +1043,9 @@
         </div>
       </div>
     </div>
+
+      </div>
+    </div>
   </div>
 
   <!-- Detail slide-in panel -->
@@ -1010,6 +1138,9 @@
     const statusEl = document.getElementById("status");
     const resultsBody = document.getElementById("results-body");
     const panelBody = document.getElementById("panel-body");
+    const summaryTotalRecordsEl = document.getElementById("summary-total-records");
+    const summaryTotalModelsEl = document.getElementById("summary-total-models");
+    const summaryTopModelsEl = document.getElementById("summary-top-models");
 
     const managedButtons = [
       "search-btn",
@@ -1218,6 +1349,7 @@
       if (state.minRanking) params.set("min_ranking", state.minRanking);
       if (state.maxRanking) params.set("max_ranking", state.maxRanking);
       if (state.noteText) params.set("note_text", state.noteText);
+      params.set("note_role_category_mode", "or");
 
       params.set("sort_by", state.sortBy);
       params.set("sort_dir", state.sortDir);
@@ -1228,6 +1360,42 @@
       }
 
       return params;
+    }
+
+    function renderSummary(payload) {
+      summaryTotalRecordsEl.textContent = String(payload.totalRecords || 0);
+      summaryTotalModelsEl.textContent = String(payload.totalModels || 0);
+
+      const models = payload.topModels || [];
+      if (!models.length) {
+        summaryTopModelsEl.innerHTML = '<li class="summary-item">No stored records yet.</li>';
+        return;
+      }
+
+      summaryTopModelsEl.innerHTML = models
+        .map((item) => `
+          <li class="summary-item">
+            <div class="summary-item-model">${escapeHtml(item.modelId)}</div>
+            <div class="summary-item-meta">
+              <span>${escapeHtml(item.noteCount)} entries</span>
+              <span>avg ${escapeHtml(formatAverageRanking(item.averageRanking))}</span>
+            </div>
+          </li>
+        `)
+        .join("");
+    }
+
+    async function loadSummary() {
+      try {
+        const response = await fetch("/api/records/summary");
+        if (!response.ok) {
+          throw new Error("Failed to load records summary");
+        }
+        const payload = await response.json();
+        renderSummary(payload);
+      } catch {
+        summaryTopModelsEl.innerHTML = '<li class="summary-item">Unable to load summary.</li>';
+      }
     }
 
     function formatAverageRanking(value) {
@@ -1452,6 +1620,8 @@
           // Keep panel usable even if the background refresh fails.
         }
       }
+
+      loadSummary();
     }
 
     function renderRows(items) {
@@ -1637,6 +1807,7 @@
       localStorage.removeItem(STORAGE_KEY);
       history.replaceState(null, "", window.location.pathname);
       closeDetailPanel();
+      loadSummary();
     }
 
     function exportData(scope, fmt) {
@@ -1758,6 +1929,8 @@
       } catch (error) {
         setError(error.message);
       }
+
+      loadSummary();
 
       if (state.cacheKey && queryInput.value.trim()) {
         fetchResults().catch(() => {

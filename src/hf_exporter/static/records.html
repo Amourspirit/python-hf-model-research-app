@@ -1,0 +1,766 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HF Model Exporter - Records</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg-primary: #ffffff;
+      --bg-secondary: #f8fafc;
+      --text-primary: #0f172a;
+      --text-secondary: #475569;
+      --text-tertiary: #64748b;
+      --border: #e2e8f0;
+      --accent: #0066cc;
+      --accent-hover: #004f9e;
+      --danger: #dc2626;
+      --danger-hover: #b91c1c;
+    }
+
+    html[data-theme="dark"] {
+      --bg-primary: #0f172a;
+      --bg-secondary: #1e293b;
+      --text-primary: #f1f5f9;
+      --text-secondary: #cbd5e1;
+      --text-tertiary: #94a3b8;
+      --border: #334155;
+      --accent: #3b82f6;
+      --accent-hover: #2563eb;
+      --danger: #f87171;
+      --danger-hover: #ef4444;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+    }
+
+    .container {
+      max-width: 1320px;
+      margin: 0 auto;
+      padding: 24px 18px;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .header h1 {
+      margin: 0;
+      font-size: 1.6rem;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .card {
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 14px;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(250px, 300px) minmax(0, 1fr);
+      gap: 14px;
+      align-items: start;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(160px, 1fr));
+      gap: 10px;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .field.full {
+      grid-column: 1 / -1;
+    }
+
+    label {
+      font-size: 0.75rem;
+      color: var(--text-tertiary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-weight: 700;
+    }
+
+    input, select, textarea, button {
+      font: inherit;
+      color: inherit;
+    }
+
+    input, select, textarea {
+      border: 1px solid var(--border);
+      background: var(--bg-primary);
+      border-radius: 8px;
+      padding: 8px 10px;
+      color: var(--text-primary);
+    }
+
+    button, .link-btn {
+      border: 1px solid transparent;
+      border-radius: 8px;
+      padding: 8px 12px;
+      cursor: pointer;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.88rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--accent);
+      color: #fff;
+    }
+
+    button:hover, .link-btn:hover {
+      background: var(--accent-hover);
+    }
+
+    .secondary {
+      background: transparent;
+      color: var(--text-primary);
+      border-color: var(--border);
+    }
+
+    .secondary:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: transparent;
+    }
+
+    .danger {
+      background: transparent;
+      color: var(--danger);
+      border-color: var(--danger);
+    }
+
+    .danger:hover {
+      color: #fff;
+      background: var(--danger-hover);
+      border-color: var(--danger-hover);
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+
+    .status {
+      margin-top: 10px;
+      font-size: 0.86rem;
+      color: var(--text-secondary);
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 980px;
+    }
+
+    th, td {
+      padding: 10px;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+      font-size: 0.86rem;
+      vertical-align: top;
+    }
+
+    th {
+      color: var(--text-tertiary);
+      text-transform: uppercase;
+      font-size: 0.74rem;
+      letter-spacing: 0.05em;
+      background: var(--bg-secondary);
+    }
+
+    .mono {
+      font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      font-size: 0.78rem;
+      word-break: break-word;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.75rem;
+      padding: 3px 8px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: var(--bg-secondary);
+    }
+
+    .meta-list {
+      list-style: none;
+      display: grid;
+      gap: 6px;
+      padding: 0;
+      margin: 8px 0 0 0;
+      max-height: 230px;
+      overflow: auto;
+    }
+
+    .meta-list li {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px 8px;
+      background: var(--bg-secondary);
+      font-size: 0.8rem;
+    }
+
+    @media (max-width: 980px) {
+      .layout { grid-template-columns: 1fr; }
+      .grid { grid-template-columns: 1fr 1fr; }
+    }
+
+    @media (max-width: 640px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Model Records</h1>
+      <div class="header-actions">
+        <a class="link-btn secondary" href="/">Search Page</a>
+        <button id="light-mode" class="secondary">Light</button>
+        <button id="dark-mode" class="secondary">Dark</button>
+      </div>
+    </div>
+
+    <div class="layout">
+      <aside>
+        <div class="card">
+          <h2 style="margin: 0; font-size: 1rem;">Summary</h2>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px;">
+            <div class="badge">Entries: <strong id="summary-total-records">0</strong></div>
+            <div class="badge">Models: <strong id="summary-total-models">0</strong></div>
+          </div>
+          <div style="margin-top: 10px; font-size: 0.8rem; color: var(--text-tertiary);">Top models by record count</div>
+          <ul id="summary-top-models" class="meta-list"></ul>
+        </div>
+
+        <div class="card">
+          <div style="font-size: 0.8rem; color: var(--text-tertiary);">Role counts</div>
+          <ul id="summary-roles" class="meta-list"></ul>
+          <div style="font-size: 0.8rem; color: var(--text-tertiary); margin-top: 12px;">Category counts</div>
+          <ul id="summary-categories" class="meta-list"></ul>
+        </div>
+      </aside>
+
+      <main>
+        <div class="card">
+          <div class="grid">
+            <div class="field">
+              <label for="filter-role">Role</label>
+              <select id="filter-role"></select>
+            </div>
+            <div class="field">
+              <label for="filter-category">Category</label>
+              <select id="filter-category"></select>
+            </div>
+            <div class="field">
+              <label for="filter-model-type">Model Type</label>
+              <select id="filter-model-type"></select>
+            </div>
+            <div class="field">
+              <label for="filter-mode">Role/Category Match</label>
+              <select id="filter-mode">
+                <option value="and" selected>AND</option>
+                <option value="or">OR</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="filter-min-ranking">Min Ranking</label>
+              <input id="filter-min-ranking" type="number" min="1" max="10" />
+            </div>
+            <div class="field">
+              <label for="filter-max-ranking">Max Ranking</label>
+              <input id="filter-max-ranking" type="number" min="1" max="10" />
+            </div>
+            <div class="field">
+              <label for="filter-page-size">Page Size</label>
+              <select id="filter-page-size">
+                <option value="25" selected>25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+            </div>
+            <div class="field full">
+              <label for="filter-text">Search Text</label>
+              <input id="filter-text" placeholder="model id or note text" />
+            </div>
+          </div>
+          <div class="actions">
+            <button id="apply-filters">Apply Filters</button>
+            <button id="reset-filters" class="secondary">Reset Filters</button>
+          </div>
+          <div class="status" id="status">Loading records...</div>
+        </div>
+
+        <div class="card">
+          <h2 id="form-title" style="margin: 0 0 10px 0; font-size: 1rem;">Create Record Entry</h2>
+          <input type="hidden" id="edit-note-id" />
+          <div class="grid">
+            <div class="field full">
+              <label for="form-model-id">Model ID</label>
+              <input id="form-model-id" placeholder="meta-llama/Llama-3.1-8B-Instruct" />
+            </div>
+            <div class="field">
+              <label for="form-role">Role</label>
+              <select id="form-role"></select>
+            </div>
+            <div class="field">
+              <label for="form-category">Category</label>
+              <select id="form-category"></select>
+            </div>
+            <div class="field">
+              <label for="form-model-type">Model Type</label>
+              <select id="form-model-type"></select>
+            </div>
+            <div class="field">
+              <label for="form-ranking">Ranking</label>
+              <input id="form-ranking" type="number" min="1" max="10" value="7" />
+            </div>
+            <div class="field full">
+              <label for="form-note-text">Notes</label>
+              <textarea id="form-note-text" rows="3"></textarea>
+            </div>
+            <div class="field full">
+              <label for="form-pros">Pros</label>
+              <textarea id="form-pros" rows="2"></textarea>
+            </div>
+            <div class="field full">
+              <label for="form-cons">Cons</label>
+              <textarea id="form-cons" rows="2"></textarea>
+            </div>
+            <div class="field full">
+              <label for="form-context">Context</label>
+              <textarea id="form-context" rows="2"></textarea>
+            </div>
+          </div>
+          <div class="actions">
+            <button id="save-record">Save Entry</button>
+            <button id="cancel-edit" class="secondary" style="display: none;">Cancel Edit</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Model</th>
+                  <th>Role</th>
+                  <th>Category</th>
+                  <th>Type</th>
+                  <th>Ranking</th>
+                  <th>Updated</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="records-body"></tbody>
+            </table>
+          </div>
+          <div class="actions" style="margin-top: 12px;">
+            <button id="prev-page" class="secondary">Previous</button>
+            <button id="next-page" class="secondary">Next</button>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    function initTheme() {
+      const savedTheme = localStorage.getItem("theme") || "light";
+      document.documentElement.setAttribute("data-theme", savedTheme);
+    }
+
+    document.getElementById("light-mode").addEventListener("click", () => {
+      document.documentElement.setAttribute("data-theme", "light");
+      localStorage.setItem("theme", "light");
+    });
+    document.getElementById("dark-mode").addEventListener("click", () => {
+      document.documentElement.setAttribute("data-theme", "dark");
+      localStorage.setItem("theme", "dark");
+    });
+
+    initTheme();
+
+    const state = {
+      page: 1,
+      pageSize: 25,
+      totalPages: 1,
+      options: { roles: [], categories: [], modelTypes: [] },
+    };
+
+    function esc(v) {
+      return String(v ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
+    }
+
+    function optionMarkup(values, selected = "", placeholder = "Any") {
+      const items = [`<option value="">${esc(placeholder)}</option>`];
+      for (const value of values) {
+        items.push(`<option value="${esc(value)}"${value === selected ? " selected" : ""}>${esc(value)}</option>`);
+      }
+      return items.join("");
+    }
+
+    async function loadOptions() {
+      const response = await fetch("/api/notes/options");
+      if (!response.ok) throw new Error("Failed to load options");
+      state.options = await response.json();
+
+      document.getElementById("filter-role").innerHTML = optionMarkup(state.options.roles, "", "Any role");
+      document.getElementById("filter-category").innerHTML = optionMarkup(state.options.categories, "", "Any category");
+      document.getElementById("filter-model-type").innerHTML = optionMarkup(state.options.modelTypes, "", "Any model type");
+
+      document.getElementById("form-role").innerHTML = optionMarkup(state.options.roles, state.options.roles[0] || "", "Select role");
+      document.getElementById("form-category").innerHTML = optionMarkup(state.options.categories, state.options.categories[0] || "", "Select category");
+      document.getElementById("form-model-type").innerHTML = optionMarkup(state.options.modelTypes, state.options.modelTypes[0] || "", "Select model type");
+    }
+
+    function formatDate(value) {
+      if (!value) return "-";
+      const parsed = new Date(value);
+      return Number.isNaN(parsed.getTime()) ? esc(value) : esc(parsed.toLocaleString());
+    }
+
+    function toPayloadFromForm() {
+      return {
+        role: document.getElementById("form-role").value,
+        category: document.getElementById("form-category").value,
+        model_type: document.getElementById("form-model-type").value,
+        ranking: Number(document.getElementById("form-ranking").value || 0),
+        note_text: document.getElementById("form-note-text").value,
+        pros: document.getElementById("form-pros").value,
+        cons: document.getElementById("form-cons").value,
+        context_text: document.getElementById("form-context").value,
+      };
+    }
+
+    function clearForm() {
+      document.getElementById("edit-note-id").value = "";
+      document.getElementById("form-title").textContent = "Create Record Entry";
+      document.getElementById("form-model-id").value = "";
+      document.getElementById("form-model-id").disabled = false;
+      document.getElementById("form-ranking").value = "7";
+      document.getElementById("form-note-text").value = "";
+      document.getElementById("form-pros").value = "";
+      document.getElementById("form-cons").value = "";
+      document.getElementById("form-context").value = "";
+      document.getElementById("cancel-edit").style.display = "none";
+    }
+
+    async function loadForEdit(noteId) {
+      const response = await fetch(`/api/note-entries/${encodeURIComponent(noteId)}`);
+      if (!response.ok) throw new Error("Failed to load note entry");
+      const item = await response.json();
+
+      document.getElementById("edit-note-id").value = item.id;
+      document.getElementById("form-title").textContent = `Edit Entry: ${item.id}`;
+      document.getElementById("form-model-id").value = item.modelId;
+      document.getElementById("form-model-id").disabled = true;
+      document.getElementById("form-role").value = item.role;
+      document.getElementById("form-category").value = item.category;
+      document.getElementById("form-model-type").value = item.modelType;
+      document.getElementById("form-ranking").value = String(item.ranking);
+      document.getElementById("form-note-text").value = item.noteText || "";
+      document.getElementById("form-pros").value = item.pros || "";
+      document.getElementById("form-cons").value = item.cons || "";
+      document.getElementById("form-context").value = item.contextText || "";
+      document.getElementById("cancel-edit").style.display = "inline-flex";
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    async function saveEntry() {
+      const editId = document.getElementById("edit-note-id").value;
+      const modelId = document.getElementById("form-model-id").value.trim();
+      const payload = toPayloadFromForm();
+
+      let response;
+      if (editId) {
+        response = await fetch(`/api/note-entries/${encodeURIComponent(editId)}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      } else {
+        if (!modelId) throw new Error("Model ID is required");
+        response = await fetch(`/api/notes/${encodeURIComponent(modelId).replaceAll("%2F", "/")}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      }
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.detail || "Failed to save entry");
+      }
+
+      clearForm();
+      await Promise.all([fetchEntries(), fetchSummary()]);
+    }
+
+    async function deleteEntry(noteId) {
+      const response = await fetch(`/api/note-entries/${encodeURIComponent(noteId)}`, { method: "DELETE" });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.detail || "Failed to delete entry");
+      }
+      await Promise.all([fetchEntries(), fetchSummary()]);
+    }
+
+    async function deleteModel(modelId) {
+      const encoded = encodeURIComponent(modelId).replaceAll("%2F", "/");
+      const response = await fetch(`/api/notes/model/${encoded}`, { method: "DELETE" });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.detail || "Failed to delete model records");
+      }
+      await Promise.all([fetchEntries(), fetchSummary()]);
+    }
+
+    function queryParams() {
+      const params = new URLSearchParams();
+      const role = document.getElementById("filter-role").value;
+      const category = document.getElementById("filter-category").value;
+      const modelType = document.getElementById("filter-model-type").value;
+      const mode = document.getElementById("filter-mode").value;
+      const minRanking = document.getElementById("filter-min-ranking").value;
+      const maxRanking = document.getElementById("filter-max-ranking").value;
+      const text = document.getElementById("filter-text").value.trim();
+
+      if (role) params.set("role", role);
+      if (category) params.set("category", category);
+      if (modelType) params.set("model_type", modelType);
+      if (minRanking) params.set("min_ranking", minRanking);
+      if (maxRanking) params.set("max_ranking", maxRanking);
+      if (text) params.set("text", text);
+
+      params.set("role_category_mode", mode);
+      params.set("page", String(state.page));
+      params.set("page_size", String(state.pageSize));
+      params.set("sort_by", "updated_at");
+      params.set("sort_dir", "desc");
+      return params;
+    }
+
+    function renderRecords(payload) {
+      const body = document.getElementById("records-body");
+      const items = payload.items || [];
+
+      if (!items.length) {
+        body.innerHTML = '<tr><td colspan="7" style="text-align:center; color: var(--text-tertiary);">No records found.</td></tr>';
+      } else {
+        body.innerHTML = items.map((item) => `
+          <tr>
+            <td>
+              <div class="mono">${esc(item.modelId)}</div>
+              <div class="badge" style="margin-top: 6px;">${esc(item.id)}</div>
+            </td>
+            <td>${esc(item.role)}</td>
+            <td>${esc(item.category)}</td>
+            <td>${esc(item.modelType)}</td>
+            <td><span class="badge">${esc(item.ranking)}</span></td>
+            <td>${formatDate(item.updatedAt || item.createdAt)}</td>
+            <td>
+              <div class="actions" style="margin: 0;">
+                <button class="secondary" data-edit="${esc(item.id)}">Edit</button>
+                <button class="danger" data-delete="${esc(item.id)}">Delete</button>
+                <button class="danger" data-delete-model="${esc(item.modelId)}">Delete Model</button>
+              </div>
+            </td>
+          </tr>
+        `).join("");
+      }
+
+      for (const button of body.querySelectorAll("button[data-edit]")) {
+        button.addEventListener("click", async () => {
+          try {
+            await loadForEdit(button.getAttribute("data-edit"));
+          } catch (error) {
+            alert(error.message);
+          }
+        });
+      }
+
+      for (const button of body.querySelectorAll("button[data-delete]")) {
+        button.addEventListener("click", async () => {
+          if (!confirm("Delete this record entry?")) return;
+          try {
+            await deleteEntry(button.getAttribute("data-delete"));
+          } catch (error) {
+            alert(error.message);
+          }
+        });
+      }
+
+      for (const button of body.querySelectorAll("button[data-delete-model]")) {
+        button.addEventListener("click", async () => {
+          const modelId = button.getAttribute("data-delete-model");
+          if (!confirm(`Delete all entries for ${modelId}?`)) return;
+          try {
+            await deleteModel(modelId);
+          } catch (error) {
+            alert(error.message);
+          }
+        });
+      }
+
+      state.totalPages = payload.meta?.totalPages || 1;
+      document.getElementById("status").textContent = `${payload.meta?.total || 0} records | Page ${payload.meta?.page || 1}/${payload.meta?.totalPages || 1} | DB: ${payload.meta?.databasePath || "-"}`;
+    }
+
+    async function fetchEntries() {
+      const response = await fetch(`/api/records/entries?${queryParams().toString()}`);
+      if (!response.ok) throw new Error("Failed to fetch records");
+      const payload = await response.json();
+      renderRecords(payload);
+    }
+
+    function renderCountList(el, rows, formatter) {
+      if (!rows.length) {
+        el.innerHTML = "<li>No data</li>";
+        return;
+      }
+      el.innerHTML = rows.map((row) => `<li>${formatter(row)}</li>`).join("");
+    }
+
+    async function fetchSummary() {
+      const response = await fetch("/api/records/summary");
+      if (!response.ok) throw new Error("Failed to fetch summary");
+      const payload = await response.json();
+
+      document.getElementById("summary-total-records").textContent = String(payload.totalRecords || 0);
+      document.getElementById("summary-total-models").textContent = String(payload.totalModels || 0);
+
+      renderCountList(
+        document.getElementById("summary-top-models"),
+        payload.topModels || [],
+        (row) => `${esc(row.modelId)} · ${esc(row.noteCount)} entries · avg ${esc((row.averageRanking ?? "-").toString())}`,
+      );
+      renderCountList(
+        document.getElementById("summary-roles"),
+        payload.byRole || [],
+        (row) => `${esc(row.key)}: ${esc(row.value)}`,
+      );
+      renderCountList(
+        document.getElementById("summary-categories"),
+        payload.byCategory || [],
+        (row) => `${esc(row.key)}: ${esc(row.value)}`,
+      );
+    }
+
+    async function refreshAll() {
+      await Promise.all([fetchEntries(), fetchSummary()]);
+    }
+
+    document.getElementById("apply-filters").addEventListener("click", async () => {
+      state.page = 1;
+      state.pageSize = Number(document.getElementById("filter-page-size").value || 25);
+      try {
+        await fetchEntries();
+      } catch (error) {
+        alert(error.message);
+      }
+    });
+
+    document.getElementById("reset-filters").addEventListener("click", async () => {
+      document.getElementById("filter-role").value = "";
+      document.getElementById("filter-category").value = "";
+      document.getElementById("filter-model-type").value = "";
+      document.getElementById("filter-min-ranking").value = "";
+      document.getElementById("filter-max-ranking").value = "";
+      document.getElementById("filter-text").value = "";
+      document.getElementById("filter-mode").value = "and";
+      state.page = 1;
+      state.pageSize = Number(document.getElementById("filter-page-size").value || 25);
+      try {
+        await fetchEntries();
+      } catch (error) {
+        alert(error.message);
+      }
+    });
+
+    document.getElementById("save-record").addEventListener("click", async () => {
+      try {
+        await saveEntry();
+      } catch (error) {
+        alert(error.message);
+      }
+    });
+
+    document.getElementById("cancel-edit").addEventListener("click", () => clearForm());
+
+    document.getElementById("prev-page").addEventListener("click", async () => {
+      if (state.page <= 1) return;
+      state.page -= 1;
+      try {
+        await fetchEntries();
+      } catch (error) {
+        alert(error.message);
+      }
+    });
+
+    document.getElementById("next-page").addEventListener("click", async () => {
+      if (state.page >= state.totalPages) return;
+      state.page += 1;
+      try {
+        await fetchEntries();
+      } catch (error) {
+        alert(error.message);
+      }
+    });
+
+    (async () => {
+      try {
+        await loadOptions();
+        clearForm();
+        await refreshAll();
+      } catch (error) {
+        document.getElementById("status").textContent = error.message;
+      }
+    })();
+  </script>
+</body>
+</html>

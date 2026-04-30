@@ -122,6 +122,11 @@ uv run uvicorn hf_exporter.web:app --host 0.0.0.0 --port 8000 --reload
 
 Open `http://localhost:8000` in your browser.
 
+Routes:
+
+- `http://localhost:8000`: Search and filter Hugging Face models.
+- `http://localhost:8000/records`: Full records management (list/filter/create/update/delete entries, plus model-level bulk delete).
+
 What the web app supports:
 
 - Live Hugging Face search by `query` (plus optional `task` and `author`).
@@ -129,11 +134,13 @@ What the web app supports:
 - Sortable table columns.
 - Server-side filtering by `task`, `author`, `library`, `min/max downloads`, and `min/max likes`.
 - Server-side filtering by note role, note category, model type, ranking range, and note text.
+- Role/category note filtering on the search page supports explicit OR matching.
 - Pagination with default page size of `25`.
 - Export full search result set as JSON or CSV.
 - Export current filtered result set as JSON or CSV.
 - Reset action to clear cached results and table state.
-- Per-model append-only evaluation entries with role, category, model type, notes, pros, cons, context, and 1-10 ranking.
+- Per-model evaluation entries with role, category, model type, notes, pros, cons, context, and 1-10 ranking.
+- Entry-level CRUD in the records manager plus model-level bulk delete.
 
 Main API endpoints:
 
@@ -145,6 +152,12 @@ Main API endpoints:
 - `GET /api/notes/options`: returns allowed values for note role, category, and model type.
 - `GET /api/notes/{model_id}`: returns note history and summary for a model.
 - `POST /api/notes/{model_id}`: appends a new evaluation entry for a model.
+- `GET /api/note-entries/{note_id}`: returns a single evaluation entry.
+- `PUT /api/note-entries/{note_id}`: updates an existing evaluation entry.
+- `DELETE /api/note-entries/{note_id}`: deletes an evaluation entry.
+- `DELETE /api/notes/model/{model_id}`: deletes all entries for a model.
+- `GET /api/records/entries`: lists/filter/sorts/paginates record entries.
+- `GET /api/records/summary`: aggregate counts and top-model summaries for sidebars.
 
 ## Persistent Storage
 
