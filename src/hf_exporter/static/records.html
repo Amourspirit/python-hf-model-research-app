@@ -11,6 +11,7 @@
     :root {
       --bg-primary: #ffffff;
       --bg-secondary: #f8fafc;
+      --bg-tertiary: #eef4fb;
       --text-primary: #0f172a;
       --text-secondary: #475569;
       --text-tertiary: #64748b;
@@ -19,11 +20,16 @@
       --accent-hover: #004f9e;
       --danger: #dc2626;
       --danger-hover: #b91c1c;
+      --success: #047857;
+      --success-bg: #ecfdf5;
+      --error-bg: #fef2f2;
+      --shadow-lg: 0 20px 25px -5px rgba(15, 23, 42, 0.14), 0 10px 10px -5px rgba(15, 23, 42, 0.08);
     }
 
     html[data-theme="dark"] {
       --bg-primary: #0f172a;
       --bg-secondary: #1e293b;
+      --bg-tertiary: #162236;
       --text-primary: #f1f5f9;
       --text-secondary: #cbd5e1;
       --text-tertiary: #94a3b8;
@@ -32,6 +38,10 @@
       --accent-hover: #2563eb;
       --danger: #f87171;
       --danger-hover: #ef4444;
+      --success: #34d399;
+      --success-bg: rgba(16, 185, 129, 0.12);
+      --error-bg: rgba(248, 113, 113, 0.12);
+      --shadow-lg: 0 20px 25px -5px rgba(2, 6, 23, 0.45), 0 10px 10px -5px rgba(2, 6, 23, 0.3);
     }
 
     * { box-sizing: border-box; }
@@ -41,6 +51,10 @@
       font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       background: var(--bg-secondary);
       color: var(--text-primary);
+    }
+
+    body.drawer-open {
+      overflow: hidden;
     }
 
     .container {
@@ -59,19 +73,55 @@
 
     .header h1 {
       margin: 0;
-      font-size: 1.6rem;
+      font-size: 1.7rem;
+    }
+
+    .header-copy p {
+      margin: 6px 0 0 0;
+      color: var(--text-secondary);
+      font-size: 0.92rem;
     }
 
     .header-actions {
       display: flex;
       gap: 8px;
       align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .theme-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px;
+      box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    }
+
+    .theme-toggle:hover {
+      border-color: var(--accent);
+    }
+
+    .theme-toggle button {
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      padding: 6px 10px;
+      border-radius: 6px;
+      color: var(--text-secondary);
+    }
+
+    .theme-toggle button.active {
+      background: var(--bg-tertiary);
+      color: var(--accent);
     }
 
     .card {
       background: var(--bg-primary);
       border: 1px solid var(--border);
-      border-radius: 12px;
+      border-radius: 14px;
       padding: 16px;
       margin-bottom: 14px;
     }
@@ -115,15 +165,20 @@
     input, select, textarea {
       border: 1px solid var(--border);
       background: var(--bg-primary);
-      border-radius: 8px;
-      padding: 8px 10px;
+      border-radius: 10px;
+      padding: 9px 11px;
       color: var(--text-primary);
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 92px;
     }
 
     button, .link-btn {
       border: 1px solid transparent;
-      border-radius: 8px;
-      padding: 8px 12px;
+      border-radius: 10px;
+      padding: 9px 13px;
       cursor: pointer;
       text-decoration: none;
       font-weight: 600;
@@ -133,10 +188,16 @@
       justify-content: center;
       background: var(--accent);
       color: #fff;
+      transition: 0.18s ease;
     }
 
     button:hover, .link-btn:hover {
       background: var(--accent-hover);
+    }
+
+    button:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
     }
 
     .secondary {
@@ -170,16 +231,44 @@
       margin-top: 10px;
     }
 
+    .subtle-actions {
+      justify-content: space-between;
+      align-items: center;
+    }
+
     .status {
       margin-top: 10px;
       font-size: 0.86rem;
       color: var(--text-secondary);
     }
 
+    .message-box {
+      margin-top: 10px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      font-size: 0.86rem;
+      display: none;
+    }
+
+    .message-box.success {
+      display: block;
+      color: var(--success);
+      background: var(--success-bg);
+      border-color: transparent;
+    }
+
+    .message-box.error {
+      display: block;
+      color: var(--danger);
+      background: var(--error-bg);
+      border-color: transparent;
+    }
+
     .table-wrap {
       overflow-x: auto;
       border: 1px solid var(--border);
-      border-radius: 10px;
+      border-radius: 12px;
     }
 
     table {
@@ -239,24 +328,144 @@
       font-size: 0.8rem;
     }
 
+    .drawer-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.5);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+      z-index: 30;
+    }
+
+    .drawer-backdrop.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .drawer {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: min(520px, 100vw);
+      height: 100vh;
+      background: var(--bg-primary);
+      border-left: 1px solid var(--border);
+      box-shadow: var(--shadow-lg);
+      transform: translateX(100%);
+      transition: transform 0.24s ease;
+      z-index: 40;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .drawer.open {
+      transform: translateX(0);
+    }
+
+    .drawer-header,
+    .drawer-footer {
+      padding: 16px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-primary);
+    }
+
+    .drawer-footer {
+      border-bottom: 0;
+      border-top: 1px solid var(--border);
+      margin-top: auto;
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .drawer-title {
+      margin: 0;
+      font-size: 1.1rem;
+    }
+
+    .drawer-subtitle {
+      margin: 4px 0 0 0;
+      font-size: 0.84rem;
+      color: var(--text-secondary);
+    }
+
+    .drawer-body {
+      padding: 16px;
+      overflow: auto;
+      display: grid;
+      gap: 12px;
+    }
+
+    .drawer-header-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: flex-start;
+    }
+
+    .drawer-close {
+      min-width: 40px;
+      min-height: 40px;
+      padding: 0;
+      font-size: 1.2rem;
+    }
+
+    .drawer-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .drawer-grid .field.full {
+      grid-column: 1 / -1;
+    }
+
+    .drawer-help {
+      color: var(--text-tertiary);
+      font-size: 0.82rem;
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+    }
+
     @media (max-width: 980px) {
       .layout { grid-template-columns: 1fr; }
       .grid { grid-template-columns: 1fr 1fr; }
     }
 
+    @media (max-width: 720px) {
+      .grid,
+      .drawer-grid { grid-template-columns: 1fr; }
+
+      .drawer {
+        width: 100vw;
+      }
+    }
+
     @media (max-width: 640px) {
-      .grid { grid-template-columns: 1fr; }
+      .header {
+        align-items: flex-start;
+        flex-direction: column;
+      }
     }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="header">
-      <h1>Model Records</h1>
+      <div class="header-copy">
+        <h1>Model Records</h1>
+        <p>Browse local evaluation entries without losing the table context while creating or editing them.</p>
+      </div>
       <div class="header-actions">
         <a class="link-btn secondary" href="/">Search Page</a>
-        <button id="light-mode" class="secondary">Light</button>
-        <button id="dark-mode" class="secondary">Dark</button>
+        <div class="theme-toggle" id="theme-toggle">
+          <button id="light-mode" class="active" title="Light mode">☀️</button>
+          <button id="dark-mode" title="Dark mode">🌙</button>
+        </div>
       </div>
     </div>
 
@@ -323,58 +532,15 @@
               <input id="filter-text" placeholder="model id or note text" />
             </div>
           </div>
-          <div class="actions">
-            <button id="apply-filters">Apply Filters</button>
-            <button id="reset-filters" class="secondary">Reset Filters</button>
+          <div class="actions subtle-actions">
+            <div class="actions" style="margin-top: 0;">
+              <button id="apply-filters">Apply Filters</button>
+              <button id="reset-filters" class="secondary">Reset Filters</button>
+            </div>
+            <button id="open-create-drawer">Create Entry</button>
           </div>
+          <div id="message" class="message-box"></div>
           <div class="status" id="status">Loading records...</div>
-        </div>
-
-        <div class="card">
-          <h2 id="form-title" style="margin: 0 0 10px 0; font-size: 1rem;">Create Record Entry</h2>
-          <input type="hidden" id="edit-note-id" />
-          <div class="grid">
-            <div class="field full">
-              <label for="form-model-id">Model ID</label>
-              <input id="form-model-id" placeholder="meta-llama/Llama-3.1-8B-Instruct" />
-            </div>
-            <div class="field">
-              <label for="form-role">Role</label>
-              <select id="form-role"></select>
-            </div>
-            <div class="field">
-              <label for="form-category">Category</label>
-              <select id="form-category"></select>
-            </div>
-            <div class="field">
-              <label for="form-model-type">Model Type</label>
-              <select id="form-model-type"></select>
-            </div>
-            <div class="field">
-              <label for="form-ranking">Ranking</label>
-              <input id="form-ranking" type="number" min="1" max="10" value="7" />
-            </div>
-            <div class="field full">
-              <label for="form-note-text">Notes</label>
-              <textarea id="form-note-text" rows="3"></textarea>
-            </div>
-            <div class="field full">
-              <label for="form-pros">Pros</label>
-              <textarea id="form-pros" rows="2"></textarea>
-            </div>
-            <div class="field full">
-              <label for="form-cons">Cons</label>
-              <textarea id="form-cons" rows="2"></textarea>
-            </div>
-            <div class="field full">
-              <label for="form-context">Context</label>
-              <textarea id="form-context" rows="2"></textarea>
-            </div>
-          </div>
-          <div class="actions">
-            <button id="save-record">Save Entry</button>
-            <button id="cancel-edit" class="secondary" style="display: none;">Cancel Edit</button>
-          </div>
         </div>
 
         <div class="card">
@@ -403,20 +569,81 @@
     </div>
   </div>
 
+  <div id="drawer-backdrop" class="drawer-backdrop"></div>
+  <aside id="record-drawer" class="drawer" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="drawer-title">
+    <div class="drawer-header">
+      <div class="drawer-header-row">
+        <div>
+          <h2 id="drawer-title" class="drawer-title">Create Record Entry</h2>
+          <p id="drawer-subtitle" class="drawer-subtitle">Add a local evaluation record without leaving the records table.</p>
+        </div>
+        <button id="drawer-close" class="secondary drawer-close" title="Close">✕</button>
+      </div>
+    </div>
+
+    <div class="drawer-body">
+      <input type="hidden" id="edit-note-id" />
+      <div class="drawer-grid">
+        <div class="field full">
+          <label for="form-model-id">Model ID</label>
+          <input id="form-model-id" placeholder="meta-llama/Llama-3.1-8B-Instruct" />
+        </div>
+        <div class="field">
+          <label for="form-role">Role</label>
+          <select id="form-role"></select>
+        </div>
+        <div class="field">
+          <label for="form-category">Category</label>
+          <select id="form-category"></select>
+        </div>
+        <div class="field">
+          <label for="form-model-type">Model Type</label>
+          <select id="form-model-type"></select>
+        </div>
+        <div class="field">
+          <label for="form-ranking">Ranking</label>
+          <input id="form-ranking" type="number" min="1" max="10" value="7" />
+        </div>
+        <div class="field full">
+          <label for="form-note-text">Notes</label>
+          <textarea id="form-note-text" rows="4" placeholder="Primary notes or evaluation summary"></textarea>
+        </div>
+        <div class="field full">
+          <label for="form-pros">Pros</label>
+          <textarea id="form-pros" rows="3" placeholder="Strengths, wins, and useful characteristics"></textarea>
+        </div>
+        <div class="field full">
+          <label for="form-cons">Cons</label>
+          <textarea id="form-cons" rows="3" placeholder="Trade-offs, missing pieces, or blockers"></textarea>
+        </div>
+        <div class="field full">
+          <label for="form-context">Context</label>
+          <textarea id="form-context" rows="3" placeholder="Deployment target, evaluation setup, or stack-specific notes"></textarea>
+        </div>
+      </div>
+      <div class="drawer-help">This drawer is shared for both create and edit. The records table stays visible so you can compare entries while you work.</div>
+    </div>
+
+    <div class="drawer-footer">
+      <button id="cancel-edit" class="secondary">Cancel</button>
+      <button id="save-record">Save Entry</button>
+    </div>
+  </aside>
+
   <script>
-    function initTheme() {
-      const savedTheme = localStorage.getItem("theme") || "light";
-      document.documentElement.setAttribute("data-theme", savedTheme);
+    function setTheme(theme) {
+      document.documentElement.setAttribute("data-theme", theme);
+      localStorage.setItem("theme", theme);
+      document.getElementById("light-mode").classList.toggle("active", theme === "light");
+      document.getElementById("dark-mode").classList.toggle("active", theme === "dark");
     }
 
-    document.getElementById("light-mode").addEventListener("click", () => {
-      document.documentElement.setAttribute("data-theme", "light");
-      localStorage.setItem("theme", "light");
-    });
-    document.getElementById("dark-mode").addEventListener("click", () => {
-      document.documentElement.setAttribute("data-theme", "dark");
-      localStorage.setItem("theme", "dark");
-    });
+    function initTheme() {
+      setTheme(localStorage.getItem("theme") || "light");
+    }
+
+    document.getElementById("light-mode").addEventListener("click", () => setTheme("light"));
+    document.getElementById("dark-mode").addEventListener("click", () => setTheme("dark"));
 
     initTheme();
 
@@ -425,7 +652,14 @@
       pageSize: 25,
       totalPages: 1,
       options: { roles: [], categories: [], modelTypes: [] },
+      drawerOpen: false,
+      editingId: "",
     };
+
+    const messageEl = document.getElementById("message");
+    const statusEl = document.getElementById("status");
+    const drawerEl = document.getElementById("record-drawer");
+    const drawerBackdropEl = document.getElementById("drawer-backdrop");
 
     function esc(v) {
       return String(v ?? "")
@@ -434,6 +668,19 @@
         .replaceAll(">", "&gt;")
         .replaceAll('"', "&quot;")
         .replaceAll("'", "&#39;");
+    }
+
+    function setMessage(text, variant = "success") {
+      if (!text) {
+        messageEl.textContent = "";
+        messageEl.className = "message-box";
+        messageEl.style.display = "none";
+        return;
+      }
+
+      messageEl.textContent = text;
+      messageEl.className = `message-box ${variant}`;
+      messageEl.style.display = "block";
     }
 
     function optionMarkup(values, selected = "", placeholder = "Any") {
@@ -477,9 +724,11 @@
       };
     }
 
-    function clearForm() {
+    function resetForm() {
+      state.editingId = "";
       document.getElementById("edit-note-id").value = "";
-      document.getElementById("form-title").textContent = "Create Record Entry";
+      document.getElementById("drawer-title").textContent = "Create Record Entry";
+      document.getElementById("drawer-subtitle").textContent = "Add a local evaluation record without leaving the records table.";
       document.getElementById("form-model-id").value = "";
       document.getElementById("form-model-id").disabled = false;
       document.getElementById("form-ranking").value = "7";
@@ -487,16 +736,48 @@
       document.getElementById("form-pros").value = "";
       document.getElementById("form-cons").value = "";
       document.getElementById("form-context").value = "";
-      document.getElementById("cancel-edit").style.display = "none";
+      if (state.options.roles.length) document.getElementById("form-role").value = state.options.roles[0];
+      if (state.options.categories.length) document.getElementById("form-category").value = state.options.categories[0];
+      if (state.options.modelTypes.length) document.getElementById("form-model-type").value = state.options.modelTypes[0];
     }
 
-    async function loadForEdit(noteId) {
+    function openDrawer() {
+      state.drawerOpen = true;
+      drawerEl.classList.add("open");
+      drawerBackdropEl.classList.add("open");
+      drawerEl.setAttribute("aria-hidden", "false");
+      document.body.classList.add("drawer-open");
+      requestAnimationFrame(() => {
+        document.getElementById("form-model-id").focus();
+      });
+    }
+
+    function closeDrawer() {
+      state.drawerOpen = false;
+      drawerEl.classList.remove("open");
+      drawerBackdropEl.classList.remove("open");
+      drawerEl.setAttribute("aria-hidden", "true");
+      document.body.classList.remove("drawer-open");
+      resetForm();
+    }
+
+    function openDrawerForCreate(modelId = "") {
+      resetForm();
+      if (modelId) {
+        document.getElementById("form-model-id").value = modelId;
+      }
+      openDrawer();
+    }
+
+    async function openDrawerForEdit(noteId) {
       const response = await fetch(`/api/note-entries/${encodeURIComponent(noteId)}`);
       if (!response.ok) throw new Error("Failed to load note entry");
       const item = await response.json();
 
+      state.editingId = item.id;
       document.getElementById("edit-note-id").value = item.id;
-      document.getElementById("form-title").textContent = `Edit Entry: ${item.id}`;
+      document.getElementById("drawer-title").textContent = "Edit Record Entry";
+      document.getElementById("drawer-subtitle").textContent = item.modelId;
       document.getElementById("form-model-id").value = item.modelId;
       document.getElementById("form-model-id").disabled = true;
       document.getElementById("form-role").value = item.role;
@@ -507,8 +788,10 @@
       document.getElementById("form-pros").value = item.pros || "";
       document.getElementById("form-cons").value = item.cons || "";
       document.getElementById("form-context").value = item.contextText || "";
-      document.getElementById("cancel-edit").style.display = "inline-flex";
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      openDrawer();
+      requestAnimationFrame(() => {
+        document.getElementById("form-role").focus();
+      });
     }
 
     async function saveEntry() {
@@ -537,7 +820,8 @@
         throw new Error(err.detail || "Failed to save entry");
       }
 
-      clearForm();
+      closeDrawer();
+      setMessage(editId ? "Record entry updated." : "Record entry created.");
       await Promise.all([fetchEntries(), fetchSummary()]);
     }
 
@@ -547,6 +831,7 @@
         const err = await response.json().catch(() => ({}));
         throw new Error(err.detail || "Failed to delete entry");
       }
+      setMessage("Record entry deleted.");
       await Promise.all([fetchEntries(), fetchSummary()]);
     }
 
@@ -557,6 +842,8 @@
         const err = await response.json().catch(() => ({}));
         throw new Error(err.detail || "Failed to delete model records");
       }
+      closeDrawer();
+      setMessage(`Deleted all records for ${modelId}.`);
       await Promise.all([fetchEntries(), fetchSummary()]);
     }
 
@@ -617,9 +904,9 @@
       for (const button of body.querySelectorAll("button[data-edit]")) {
         button.addEventListener("click", async () => {
           try {
-            await loadForEdit(button.getAttribute("data-edit"));
+            await openDrawerForEdit(button.getAttribute("data-edit"));
           } catch (error) {
-            alert(error.message);
+            setMessage(error.message, "error");
           }
         });
       }
@@ -630,7 +917,7 @@
           try {
             await deleteEntry(button.getAttribute("data-delete"));
           } catch (error) {
-            alert(error.message);
+            setMessage(error.message, "error");
           }
         });
       }
@@ -642,13 +929,13 @@
           try {
             await deleteModel(modelId);
           } catch (error) {
-            alert(error.message);
+            setMessage(error.message, "error");
           }
         });
       }
 
       state.totalPages = payload.meta?.totalPages || 1;
-      document.getElementById("status").textContent = `${payload.meta?.total || 0} records | Page ${payload.meta?.page || 1}/${payload.meta?.totalPages || 1} | DB: ${payload.meta?.databasePath || "-"}`;
+      statusEl.textContent = `${payload.meta?.total || 0} records | Page ${payload.meta?.page || 1}/${payload.meta?.totalPages || 1} | DB: ${payload.meta?.databasePath || "-"}`;
     }
 
     async function fetchEntries() {
@@ -701,7 +988,7 @@
       try {
         await fetchEntries();
       } catch (error) {
-        alert(error.message);
+        setMessage(error.message, "error");
       }
     });
 
@@ -715,22 +1002,30 @@
       document.getElementById("filter-mode").value = "and";
       state.page = 1;
       state.pageSize = Number(document.getElementById("filter-page-size").value || 25);
+      setMessage("");
       try {
         await fetchEntries();
       } catch (error) {
-        alert(error.message);
+        setMessage(error.message, "error");
       }
+    });
+
+    document.getElementById("open-create-drawer").addEventListener("click", () => {
+      setMessage("");
+      openDrawerForCreate();
     });
 
     document.getElementById("save-record").addEventListener("click", async () => {
       try {
         await saveEntry();
       } catch (error) {
-        alert(error.message);
+        setMessage(error.message, "error");
       }
     });
 
-    document.getElementById("cancel-edit").addEventListener("click", () => clearForm());
+    document.getElementById("cancel-edit").addEventListener("click", closeDrawer);
+    document.getElementById("drawer-close").addEventListener("click", closeDrawer);
+    drawerBackdropEl.addEventListener("click", closeDrawer);
 
     document.getElementById("prev-page").addEventListener("click", async () => {
       if (state.page <= 1) return;
@@ -738,7 +1033,7 @@
       try {
         await fetchEntries();
       } catch (error) {
-        alert(error.message);
+        setMessage(error.message, "error");
       }
     });
 
@@ -748,17 +1043,23 @@
       try {
         await fetchEntries();
       } catch (error) {
-        alert(error.message);
+        setMessage(error.message, "error");
+      }
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && state.drawerOpen) {
+        closeDrawer();
       }
     });
 
     (async () => {
       try {
         await loadOptions();
-        clearForm();
+        resetForm();
         await refreshAll();
       } catch (error) {
-        document.getElementById("status").textContent = error.message;
+        statusEl.textContent = error.message;
       }
     })();
   </script>

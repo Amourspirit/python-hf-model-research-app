@@ -120,77 +120,6 @@
       color: var(--accent-primary);
     }
 
-    .page-layout {
-      display: grid;
-      grid-template-columns: minmax(250px, 300px) minmax(0, 1fr);
-      gap: 20px;
-      align-items: start;
-    }
-
-    .content-stack {
-      min-width: 0;
-    }
-
-    .summary-stats {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 10px;
-      margin-bottom: 12px;
-    }
-
-    .summary-stat {
-      background: var(--bg-secondary);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 10px;
-    }
-
-    .summary-stat-label {
-      font-size: 0.72rem;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--text-tertiary);
-      margin-bottom: 4px;
-      font-weight: 700;
-    }
-
-    .summary-stat-value {
-      font-size: 1.15rem;
-      font-weight: 700;
-      color: var(--text-primary);
-    }
-
-    .summary-list {
-      list-style: none;
-      display: grid;
-      gap: 8px;
-      max-height: 420px;
-      overflow: auto;
-    }
-
-    .summary-item {
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 8px 10px;
-      background: var(--bg-secondary);
-    }
-
-    .summary-item-model {
-      font-size: 0.84rem;
-      font-weight: 600;
-      color: var(--text-primary);
-      word-break: break-word;
-    }
-
-    .summary-item-meta {
-      margin-top: 4px;
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      color: var(--text-secondary);
-      font-size: 0.78rem;
-    }
-
     .header-content h1 {
       font-size: 2rem;
       font-weight: 700;
@@ -878,13 +807,118 @@
       flex-shrink: 0;
     }
 
-    @media (max-width: 960px) {
-      .page-layout {
-        grid-template-columns: 1fr;
-      }
+    .note-drawer-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.48);
+      opacity: 0;
+      pointer-events: none;
+      transition: var(--transition);
+      z-index: 110;
+    }
+
+    .note-drawer-backdrop.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .note-drawer {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: min(520px, 100vw);
+      height: 100vh;
+      background: var(--bg-primary);
+      border-left: 1px solid var(--border);
+      box-shadow: var(--shadow-xl);
+      transform: translateX(100%);
+      transition: var(--transition);
+      z-index: 120;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .note-drawer.open {
+      transform: translateX(0);
+    }
+
+    .note-drawer-header,
+    .note-drawer-footer {
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-primary);
+    }
+
+    .note-drawer-footer {
+      border-bottom: 0;
+      border-top: 1px solid var(--border);
+      margin-top: auto;
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .note-drawer-header-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .note-drawer-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+    }
+
+    .note-drawer-subtitle {
+      font-size: 0.86rem;
+      color: var(--text-secondary);
+      margin-top: 4px;
+      word-break: break-word;
+    }
+
+    .note-drawer-close {
+      min-width: 40px;
+      min-height: 40px;
+      padding: 0;
+    }
+
+    .note-drawer-body {
+      padding: 20px;
+      overflow: auto;
+      display: grid;
+      gap: 14px;
+    }
+
+    .note-drawer-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .note-drawer-grid .field.full {
+      grid-column: 1 / -1;
+    }
+
+    .note-drawer-help {
+      color: var(--text-tertiary);
+      font-size: 0.82rem;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--bg-secondary);
     }
 
     @media (max-width: 640px) {
+      .note-drawer-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .note-drawer {
+        width: 100vw;
+      }
+
       .panel-grid {
         grid-template-columns: 1fr;
       }
@@ -906,26 +940,6 @@
         </div>
       </div>
     </div>
-
-    <div class="page-layout">
-      <aside class="card">
-        <h2 style="font-size: 1rem; margin-bottom: 10px;">Stored Records</h2>
-        <div class="summary-stats">
-          <div class="summary-stat">
-            <div class="summary-stat-label">Entries</div>
-            <div class="summary-stat-value" id="summary-total-records">0</div>
-          </div>
-          <div class="summary-stat">
-            <div class="summary-stat-label">Models</div>
-            <div class="summary-stat-value" id="summary-total-models">0</div>
-          </div>
-        </div>
-        <ul class="summary-list" id="summary-top-models">
-          <li class="summary-item">No stored records yet.</li>
-        </ul>
-      </aside>
-
-      <div class="content-stack">
 
     <div class="card">
       <div class="grid">
@@ -1043,9 +1057,6 @@
         </div>
       </div>
     </div>
-
-      </div>
-    </div>
   </div>
 
   <!-- Detail slide-in panel -->
@@ -1057,6 +1068,64 @@
     </div>
     <div class="panel-body" id="panel-body"></div>
   </div>
+
+  <div class="note-drawer-backdrop" id="note-drawer-backdrop"></div>
+  <aside class="note-drawer" id="note-drawer" role="dialog" aria-modal="true" aria-labelledby="note-drawer-title">
+    <div class="note-drawer-header">
+      <div class="note-drawer-header-row">
+        <div>
+          <div class="note-drawer-title" id="note-drawer-title">Create Evaluation Entry</div>
+          <div class="note-drawer-subtitle" id="note-drawer-subtitle"></div>
+        </div>
+        <button class="secondary note-drawer-close" id="note-drawer-close" title="Close">✕</button>
+      </div>
+    </div>
+    <div class="note-drawer-body">
+      <div class="field full">
+        <label for="drawer-model-id">Model ID</label>
+        <input id="drawer-model-id" readonly />
+      </div>
+      <div class="note-drawer-grid">
+        <div class="field">
+          <label for="drawer-role">Role</label>
+          <select id="drawer-role"></select>
+        </div>
+        <div class="field">
+          <label for="drawer-category">Category</label>
+          <select id="drawer-category"></select>
+        </div>
+        <div class="field">
+          <label for="drawer-model-type">Model Type</label>
+          <select id="drawer-model-type"></select>
+        </div>
+        <div class="field">
+          <label for="drawer-ranking">Ranking</label>
+          <input id="drawer-ranking" type="number" min="1" max="10" value="7" />
+        </div>
+        <div class="field full">
+          <label for="drawer-note-text">Notes</label>
+          <textarea id="drawer-note-text" rows="4" placeholder="What makes this model a fit for this role?"></textarea>
+        </div>
+        <div class="field full">
+          <label for="drawer-pros">Pros</label>
+          <textarea id="drawer-pros" rows="3" placeholder="Strengths, wins, or standout behavior"></textarea>
+        </div>
+        <div class="field full">
+          <label for="drawer-cons">Cons</label>
+          <textarea id="drawer-cons" rows="3" placeholder="Weaknesses, caveats, or blockers"></textarea>
+        </div>
+        <div class="field full">
+          <label for="drawer-context-text">Context / Use Case</label>
+          <textarea id="drawer-context-text" rows="3" placeholder="Deployment target, benchmark setup, or stack context"></textarea>
+        </div>
+      </div>
+      <div class="note-drawer-help">Use the side drawer to add an evaluation entry without turning the model details view into a full-page form.</div>
+    </div>
+    <div class="note-drawer-footer">
+      <button class="secondary" id="note-drawer-cancel">Cancel</button>
+      <button class="primary" id="note-drawer-save">Save Entry</button>
+    </div>
+  </aside>
 
   <script>
     function initTheme() {
@@ -1112,6 +1181,7 @@
       maxRanking: "",
       noteOptions: null,
       activeModel: null,
+      activeNoteDrawerModel: null,
     };
 
     let searchController = null;
@@ -1138,9 +1208,8 @@
     const statusEl = document.getElementById("status");
     const resultsBody = document.getElementById("results-body");
     const panelBody = document.getElementById("panel-body");
-    const summaryTotalRecordsEl = document.getElementById("summary-total-records");
-    const summaryTotalModelsEl = document.getElementById("summary-total-models");
-    const summaryTopModelsEl = document.getElementById("summary-top-models");
+    const noteDrawerEl = document.getElementById("note-drawer");
+    const noteDrawerBackdropEl = document.getElementById("note-drawer-backdrop");
 
     const managedButtons = [
       "search-btn",
@@ -1362,42 +1431,6 @@
       return params;
     }
 
-    function renderSummary(payload) {
-      summaryTotalRecordsEl.textContent = String(payload.totalRecords || 0);
-      summaryTotalModelsEl.textContent = String(payload.totalModels || 0);
-
-      const models = payload.topModels || [];
-      if (!models.length) {
-        summaryTopModelsEl.innerHTML = '<li class="summary-item">No stored records yet.</li>';
-        return;
-      }
-
-      summaryTopModelsEl.innerHTML = models
-        .map((item) => `
-          <li class="summary-item">
-            <div class="summary-item-model">${escapeHtml(item.modelId)}</div>
-            <div class="summary-item-meta">
-              <span>${escapeHtml(item.noteCount)} entries</span>
-              <span>avg ${escapeHtml(formatAverageRanking(item.averageRanking))}</span>
-            </div>
-          </li>
-        `)
-        .join("");
-    }
-
-    async function loadSummary() {
-      try {
-        const response = await fetch("/api/records/summary");
-        if (!response.ok) {
-          throw new Error("Failed to load records summary");
-        }
-        const payload = await response.json();
-        renderSummary(payload);
-      } catch {
-        summaryTopModelsEl.innerHTML = '<li class="summary-item">Unable to load summary.</li>';
-      }
-    }
-
     function formatAverageRanking(value) {
       if (value === null || value === undefined || Number.isNaN(Number(value))) {
         return "-";
@@ -1463,7 +1496,6 @@
     function renderDetailPanel(item, notesPayload = { items: [], summary: {} }, loading = false) {
       const hfUrl = item.modelId ? `https://huggingface.co/${encodeURIComponent(item.modelId).replaceAll("%2F", "/")}` : null;
       const summary = notesPayload.summary || {};
-      const options = state.noteOptions || { roles: [], categories: [], modelTypes: [] };
 
       panelBody.innerHTML = `
         <div class="panel-field">
@@ -1501,43 +1533,10 @@
 
         <div class="panel-section">
           <div class="panel-section-title">Add Evaluation Entry</div>
-          <div class="panel-grid">
-            <div class="field">
-              <label for="detail-role">Role</label>
-              <select id="detail-role">${buildSelectOptions(options.roles, options.roles[0] || "", "Select role")}</select>
-            </div>
-            <div class="field">
-              <label for="detail-category">Category</label>
-              <select id="detail-category">${buildSelectOptions(options.categories, options.categories[0] || "", "Select category")}</select>
-            </div>
-            <div class="field">
-              <label for="detail-model-type">Model Type</label>
-              <select id="detail-model-type">${buildSelectOptions(options.modelTypes, options.modelTypes[0] || "", "Select model type")}</select>
-            </div>
-            <div class="field">
-              <label for="detail-ranking">Ranking</label>
-              <input id="detail-ranking" type="number" min="1" max="10" value="7" />
-            </div>
-            <div class="field full">
-              <label for="detail-note-text">Notes</label>
-              <textarea id="detail-note-text" rows="4" placeholder="What makes this model a fit for this role?"></textarea>
-            </div>
-            <div class="field full">
-              <label for="detail-pros">Pros</label>
-              <textarea id="detail-pros" rows="3" placeholder="Strengths, wins, or standout behavior"></textarea>
-            </div>
-            <div class="field full">
-              <label for="detail-cons">Cons</label>
-              <textarea id="detail-cons" rows="3" placeholder="Weaknesses, caveats, or blockers"></textarea>
-            </div>
-            <div class="field full">
-              <label for="detail-context-text">Context / Use Case</label>
-              <textarea id="detail-context-text" rows="3" placeholder="Deployment target, benchmark setup, or stack context"></textarea>
-            </div>
-          </div>
-          <div class="panel-helper-text">Entries are append-only. Use a new record for each evaluation pass, role, or category change.</div>
+          <div class="panel-helper-text">Open the slide-over drawer to create a new evaluation entry without turning this details view into a full-page form.</div>
           <div class="panel-actions">
-            <button class="primary" id="save-note-btn">Save Entry</button>
+            <button class="primary" id="open-note-drawer-btn">Open Entry Drawer</button>
+            <a href="/records" class="panel-hf-link" style="margin-top: 0;">Manage All Records <span>↗</span></a>
           </div>
         </div>
 
@@ -1547,11 +1546,11 @@
         </div>
       `;
 
-      const saveButton = document.getElementById("save-note-btn");
-      if (saveButton) {
-        saveButton.addEventListener("click", async () => {
+      const openDrawerButton = document.getElementById("open-note-drawer-btn");
+      if (openDrawerButton) {
+        openDrawerButton.addEventListener("click", async () => {
           try {
-            await saveNote(item);
+            await openNoteDrawer(item);
           } catch (error) {
             setError(error.message);
           }
@@ -1559,11 +1558,49 @@
       }
     }
 
+    function syncBodyScrollLock() {
+      if (state.activeModel || state.activeNoteDrawerModel) {
+        document.body.style.overflow = "hidden";
+        return;
+      }
+      document.body.style.overflow = "";
+    }
+
+    function resetNoteDrawerForm() {
+      const options = state.noteOptions || { roles: [], categories: [], modelTypes: [] };
+      document.getElementById("drawer-model-id").value = state.activeNoteDrawerModel?.modelId || "";
+      document.getElementById("drawer-role").innerHTML = buildSelectOptions(options.roles, options.roles[0] || "", "Select role");
+      document.getElementById("drawer-category").innerHTML = buildSelectOptions(options.categories, options.categories[0] || "", "Select category");
+      document.getElementById("drawer-model-type").innerHTML = buildSelectOptions(options.modelTypes, options.modelTypes[0] || "", "Select model type");
+      document.getElementById("drawer-ranking").value = "7";
+      document.getElementById("drawer-note-text").value = "";
+      document.getElementById("drawer-pros").value = "";
+      document.getElementById("drawer-cons").value = "";
+      document.getElementById("drawer-context-text").value = "";
+    }
+
+    async function openNoteDrawer(item) {
+      await ensureNoteOptionsLoaded();
+      state.activeNoteDrawerModel = item;
+      document.getElementById("note-drawer-subtitle").textContent = item.modelId || "";
+      resetNoteDrawerForm();
+      noteDrawerEl.classList.add("open");
+      noteDrawerBackdropEl.classList.add("open");
+      syncBodyScrollLock();
+    }
+
+    function closeNoteDrawer() {
+      state.activeNoteDrawerModel = null;
+      noteDrawerEl.classList.remove("open");
+      noteDrawerBackdropEl.classList.remove("open");
+      syncBodyScrollLock();
+    }
+
     async function openDetailPanel(item) {
       state.activeModel = item;
       document.getElementById("detail-panel").classList.add("open");
       document.getElementById("panel-backdrop").classList.add("open");
-      document.body.style.overflow = "hidden";
+      syncBodyScrollLock();
 
       await ensureNoteOptionsLoaded();
       renderDetailPanel(item, { items: [], summary: { note_count: item.note_count, average_ranking: item.average_ranking } }, true);
@@ -1580,22 +1617,28 @@
     }
 
     function closeDetailPanel() {
+      closeNoteDrawer();
       state.activeModel = null;
       document.getElementById("detail-panel").classList.remove("open");
       document.getElementById("panel-backdrop").classList.remove("open");
-      document.body.style.overflow = "";
+      syncBodyScrollLock();
     }
 
-    async function saveNote(item) {
+    async function saveNoteFromDrawer() {
+      const item = state.activeNoteDrawerModel;
+      if (!item?.modelId) {
+        throw new Error("No active model selected");
+      }
+
       const payload = {
-        role: document.getElementById("detail-role").value,
-        category: document.getElementById("detail-category").value,
-        model_type: document.getElementById("detail-model-type").value,
-        ranking: Number(document.getElementById("detail-ranking").value || 0),
-        note_text: document.getElementById("detail-note-text").value,
-        pros: document.getElementById("detail-pros").value,
-        cons: document.getElementById("detail-cons").value,
-        context_text: document.getElementById("detail-context-text").value,
+        role: document.getElementById("drawer-role").value,
+        category: document.getElementById("drawer-category").value,
+        model_type: document.getElementById("drawer-model-type").value,
+        ranking: Number(document.getElementById("drawer-ranking").value || 0),
+        note_text: document.getElementById("drawer-note-text").value,
+        pros: document.getElementById("drawer-pros").value,
+        cons: document.getElementById("drawer-cons").value,
+        context_text: document.getElementById("drawer-context-text").value,
       };
 
       const response = await fetch(`/api/notes/${encodeURIComponent(item.modelId).replaceAll("%2F", "/")}`, {
@@ -1610,6 +1653,7 @@
       }
 
       const result = await response.json();
+      closeNoteDrawer();
       renderDetailPanel(item, result, false);
       setMessage("Note entry saved.");
 
@@ -1620,8 +1664,6 @@
           // Keep panel usable even if the background refresh fails.
         }
       }
-
-      loadSummary();
     }
 
     function renderRows(items) {
@@ -1807,7 +1849,6 @@
       localStorage.removeItem(STORAGE_KEY);
       history.replaceState(null, "", window.location.pathname);
       closeDetailPanel();
-      loadSummary();
     }
 
     function exportData(scope, fmt) {
@@ -1917,7 +1958,23 @@
     document.getElementById("panel-close").addEventListener("click", closeDetailPanel);
     document.getElementById("panel-backdrop").addEventListener("click", closeDetailPanel);
     document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") closeDetailPanel();
+      if (e.key !== "Escape") return;
+      if (state.activeNoteDrawerModel) {
+        closeNoteDrawer();
+        return;
+      }
+      closeDetailPanel();
+    });
+
+    document.getElementById("note-drawer-close").addEventListener("click", closeNoteDrawer);
+    document.getElementById("note-drawer-cancel").addEventListener("click", closeNoteDrawer);
+    document.getElementById("note-drawer-backdrop").addEventListener("click", closeNoteDrawer);
+    document.getElementById("note-drawer-save").addEventListener("click", async () => {
+      try {
+        await saveNoteFromDrawer();
+      } catch (error) {
+        setError(error.message);
+      }
     });
 
     hydrateState();
@@ -1929,8 +1986,6 @@
       } catch (error) {
         setError(error.message);
       }
-
-      loadSummary();
 
       if (state.cacheKey && queryInput.value.trim()) {
         fetchResults().catch(() => {

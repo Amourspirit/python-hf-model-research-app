@@ -124,7 +124,7 @@ Open `http://localhost:8000` in your browser.
 
 Routes:
 
-- `http://localhost:8000`: Search and filter Hugging Face models.
+- `http://localhost:8000`: Search and filter Hugging Face models. This page no longer shows the global stored-records summary.
 - `http://localhost:8000/records`: Full records management (list/filter/create/update/delete entries, plus model-level bulk delete).
 
 What the web app supports:
@@ -140,7 +140,9 @@ What the web app supports:
 - Export current filtered result set as JSON or CSV.
 - Reset action to clear cached results and table state.
 - Per-model evaluation entries with role, category, model type, notes, pros, cons, context, and 1-10 ranking.
+- Model detail uses a slide-over entry drawer for create actions instead of embedding the full form directly in the detail panel.
 - Entry-level CRUD in the records manager plus model-level bulk delete.
+- Records-page create and edit actions use a right-side drawer so the records table stays visible while you work.
 
 Main API endpoints:
 
