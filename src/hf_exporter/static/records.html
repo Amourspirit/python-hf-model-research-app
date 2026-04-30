@@ -178,6 +178,12 @@
       line-height: 1.45;
     }
 
+    .site-width-value {
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+      margin-top: 4px;
+    }
+
     .site-settings-panel-footer {
       padding: 14px 16px;
       border-top: 1px solid var(--border);
@@ -1010,7 +1016,8 @@
       </div>
       <div class="field">
         <label for="site-max-width">Max Page Width (px)</label>
-        <input id="site-max-width" type="number" min="960" max="1920" step="10" />
+        <input id="site-max-width" type="range" min="960" max="1920" step="10" />
+        <div class="site-width-value">Current: <strong id="site-max-width-value">1280px</strong></div>
       </div>
       <div class="site-settings-meta">
         Selected mode: <strong id="site-selected-theme">Auto (System)</strong><br />
@@ -1120,6 +1127,8 @@
         document.getElementById("site-max-width").value = String(siteSettings.maxPageWidth);
       }
 
+      document.getElementById("site-max-width-value").textContent = `${siteSettings.maxPageWidth}px`;
+
       document.getElementById("site-selected-theme").textContent = getThemeModeLabel(siteSettings.themeMode);
       document.getElementById("site-effective-theme").textContent = effectiveTheme === "dark" ? "Dark" : "Light";
     }
@@ -1176,6 +1185,10 @@
       writeSiteSettings(initialSettings);
       applySiteSettings(initialSettings);
 
+      document.getElementById("site-max-width").addEventListener("input", (event) => {
+        const value = normalizeWidth(event.target.value);
+        document.getElementById("site-max-width-value").textContent = `${value}px`;
+      });
       document.getElementById("site-settings-open").addEventListener("click", openSiteSettingsPanel);
       document.getElementById("site-settings-close").addEventListener("click", closeSiteSettingsPanel);
       document.getElementById("site-settings-backdrop").addEventListener("click", closeSiteSettingsPanel);
