@@ -36,6 +36,54 @@ JSON export example:
 uv run hf-exporter "llama" --fmt json --output exports/models.json
 ```
 
+## Global Access (Linux and macOS)
+
+To run the app from any directory (without `cd` into this project), install the CLI globally from the local project path:
+
+```bash
+uv tool install /absolute/path/to/hf-model-exporter
+```
+
+If needed, add `~/.local/bin` to your shell `PATH`.
+
+Linux (bash):
+
+```bash
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
+```
+
+macOS (zsh):
+
+```bash
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
+source ~/.zshrc
+```
+
+You can now use the CLI from anywhere:
+
+```bash
+hf-exporter "text-generation" --output ~/Downloads/models.csv
+hf-exporter "llama" --fmt json --output ~/Downloads/models.json
+```
+
+To start the web app from anywhere, create a small wrapper script:
+
+```bash
+mkdir -p ~/.local/bin
+cat > ~/.local/bin/hf-exporter-web <<'EOF'
+#!/usr/bin/env bash
+uv run --directory /absolute/path/to/hf-model-exporter uvicorn hf_exporter.web:app --host 0.0.0.0 --port 8000 --reload "$@"
+EOF
+chmod +x ~/.local/bin/hf-exporter-web
+```
+
+Then run:
+
+```bash
+hf-exporter-web
+```
+
 ## Running Locally (Without Docker)
 
 Install dependencies:
