@@ -1,220 +1,107 @@
-# HuggingFace Model Exporter
+# Hugging Face Model Exporter
 
-CLI tool to export full lists of Hugging Face models matching a query to CSV or JSON.
+General-purpose utility for Hugging Face model research.
 
-The web app also supports persistent SQLite-backed model evaluation notes and rankings stored under the project `storage/` directory.
+You can use it as a command-line tool to search Hugging Face and export results, or use the web app for richer model research workflows with notes, rankings, and project isolation.
+
+## Features
+
+- Hugging Face search and filtering by query, task, author, and library.
+- Command-line export to CSV or JSON.
+- Multi-project research workflow with isolated project storage and an active project switch.
+- Per-model note-taking and ranking (1-10) for evaluation workflows.
+- Rich note details: role, category, model type, labels (tags), note text, pros, cons, context, and ranking.
+- Search filtering by note metadata (role/category/model type/labels/ranking/text).
+- Docker Compose workflows for CLI and web usage.
+- FastAPI web API plus browser UI for search, records, and project management.
 
 ## Requirements
 
 - Python 3.12+
-- uv (Astral)
+- [uv](https://github.com/astral-sh/uv)
+- Optional: Docker and Docker Compose
 
-## Install Dependencies
+## Quick Start (CLI Only)
+
+If you only want to search Hugging Face and export results from the command line:
+
+```bash
+uv sync
+uv run hf-exporter "text-generation" --output exports/models.csv
+```
+
+JSON export example:
+
+```bash
+uv run hf-exporter "llama" --fmt json --output exports/models.json
+```
+
+## Running Locally (Without Docker)
+
+Install dependencies:
 
 ```bash
 uv sync
 ```
 
-## Usage
-
-Export to CSV (default format):
-
-```bash
-uv run hf-exporter export "text-generation" --output models.csv
-```
-
-Export to JSON:
-
-```bash
-uv run hf-exporter export "llama" --fmt json --output models.json
-```
-
-Filter by task and author:
-
-```bash
-uv run hf-exporter export "gpt" --task text-generation --author openai --output exports/gpt_models.csv
-```
-
-Filter by library and note metadata:
-
-```bash
-uv run hf-exporter export "llama" --library transformers --note-role main --note-category llm-stack --min-ranking 7 --output exports/llama_main_candidates.csv
-```
-
-Run as a Python module:
-
-Note: module invocation is single-command style (`python -m hf_exporter QUERY ...`).
-
-```bash
-uv run python -m hf_exporter "text-generation" --output exports/models.csv
-```
-
-### CLI Parameters
-
-The module command is:
-
-```bash
-uv run python -m hf_exporter [OPTIONS] QUERY
-```
-
-Supported argument and options:
-
-- `QUERY` (required argument): Search text used to find matching Hugging Face models.
-- `--task TEXT`: Filter results by pipeline task (for example `text-generation`).
-- `--author TEXT`: Filter results to models published by a specific author or organization.
-- `--library TEXT`: Filter results by library name (for example `transformers`).
-- `--output TEXT` (default: `models.csv`): Output file path for the exported results.
-- `--fmt TEXT` (default: `csv`): Output format. Use `csv` or `json`.
-- `--note-role TEXT`: Filter to models with notes matching the selected role.
-- `--note-category TEXT`: Filter to models with notes matching the selected category.
-- `--note-model-type TEXT`: Filter to models with notes matching the selected model type.
-- `--min-ranking INTEGER`: Minimum note ranking filter (1-10).
-- `--max-ranking INTEGER`: Maximum note ranking filter (1-10).
-- `--note-text TEXT`: Free-text note filter across notes/pros/cons/context.
-- `--install-completion`: Install shell tab-completion for your current shell (for example `bash`, `zsh`, or `fish`). This is a one-time setup command that adds completion support so the CLI can autocomplete flags and arguments when you press `Tab`.
-- `--show-completion`: Print shell completion script so you can copy/customize it manually.
-- `--help`: Show command help and exit.
-
-Export behavior with notes:
-
-- CSV exports include flat note summary columns (`note_count`, `average_ranking`).
-- JSON exports include both summary columns and nested `notes` per model.
-
-`--install-completion` details:
-
-- It does not run an export. It only configures shell completion.
-- It installs completion for the shell you are currently using.
-- After running it, restart your terminal session (or reload your shell profile) to enable completions.
-
-Install completion:
-
-```bash
-uv run python -m hf_exporter --install-completion
-```
-
-Example usage after completion is installed:
-
-```bash
-# Type this, then press Tab to complete available options
-uv run python -m hf_exporter --
-
-# Type this, then press Tab to complete the option name (for example --output)
-uv run python -m hf_exporter "text-generation" --ou
-```
-
-## Auth
-
-Set `HF_TOKEN` to increase rate limits:
-
-Set in `.env` file or:
+Optional authentication (recommended for higher rate limits):
 
 ```bash
 export HF_TOKEN=your_token_here
 ```
 
-## Web API And Browser UI
+### CLI Usage
 
-Start the web app locally:
+Basic usage:
+
+```bash
+uv run hf-exporter [OPTIONS] QUERY
+```
+
+Examples:
+
+```bash
+uv run hf-exporter "gpt" --task text-generation --author openai --output exports/gpt_models.csv
+uv run hf-exporter "llama" --library transformers --note-role main --note-category llm-stack --min-ranking 7 --output exports/llama_main_candidates.csv
+```
+
+Run as a Python module:
+
+```bash
+uv run python -m hf_exporter "text-generation" --output exports/models.csv
+```
+
+Shell completion:
+
+```bash
+uv run python -m hf_exporter --install-completion
+```
+
+### Web UI + API
+
+Start the server:
 
 ```bash
 uv run uvicorn hf_exporter.web:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-Open `http://localhost:8000` in your browser.
+Open:
 
-Routes:
+- `http://localhost:8000` (search + export UI)
+- `http://localhost:8000/records` (records management UI)
+- `http://localhost:8000/projects` (project management UI)
 
-- `http://localhost:8000`: Search and filter Hugging Face models. This page no longer shows the global stored-records summary.
-- `http://localhost:8000/records`: Full records management (list/filter/create/update/delete entries, plus model-level bulk delete).
-- `http://localhost:8000/projects`: Project management (create/list/activate/delete isolated projects).
+## Running With Docker Compose
 
-What the web app supports:
+This repository includes three Compose services: interactive CLI, direct CLI, and web app.
 
-- Live Hugging Face search by `query` (plus optional `task` and `author`).
-- Server-side cached result set after each search.
-- Sortable table columns.
-- Server-side filtering by `task`, `author`, `library`, `min/max downloads`, and `min/max likes`.
-- Server-side filtering by note role, note category, model type, ranking range, and note text.
-- Role/category note filtering on the search page supports explicit OR matching.
-- Pagination with default page size of `25`.
-- Export full search result set as JSON or CSV.
-- Export current filtered result set as JSON or CSV.
-- Reset action to clear cached results and table state.
-- Per-model evaluation entries with role, category, model type, notes, pros, cons, context, and 1-10 ranking.
-- Model detail uses a slide-over entry drawer for create actions instead of embedding the full form directly in the detail panel.
-- Entry-level CRUD in the records manager plus model-level bulk delete.
-- Records-page create and edit actions use a right-side drawer so the records table stays visible while you work.
-- Multi-project isolation with a global active project.
-- Project lifecycle operations from the Projects page (create, activate, hard delete with confirmation).
-- Automatic bootstrap of a `default` project, including one-time migration from legacy `storage/hf_exporter.db` if present.
-
-Main API endpoints:
-
-- `POST /api/search`: runs live query against Hugging Face and returns first page of data.
-- `GET /api/results`: returns filtered/sorted/paginated rows from cached search results.
-- `GET /api/export/full`: exports all fetched rows as `fmt=json|csv`.
-- `GET /api/export/filtered`: exports filtered rows as `fmt=json|csv`.
-- `POST /api/reset`: clears current cached result set.
-- `GET /api/notes/options`: returns allowed values for note role, category, and model type.
-- `GET /api/notes/{model_id}`: returns note history and summary for a model.
-- `POST /api/notes/{model_id}`: appends a new evaluation entry for a model.
-- `GET /api/note-entries/{note_id}`: returns a single evaluation entry.
-- `PUT /api/note-entries/{note_id}`: updates an existing evaluation entry.
-- `DELETE /api/note-entries/{note_id}`: deletes an evaluation entry.
-- `DELETE /api/notes/model/{model_id}`: deletes all entries for a model.
-- `GET /api/records/entries`: lists/filter/sorts/paginates record entries.
-- `GET /api/records/summary`: aggregate counts and top-model summaries for sidebars.
-- `GET /api/projects`: list all projects.
-- `POST /api/projects`: create a new project (`displayName`, optional `slug`).
-- `GET /api/projects/active`: get the active project.
-- `GET /api/projects/{project_id}`: get one project.
-- `POST /api/projects/{project_id}/activate`: activate a project globally for the running server.
-- `DELETE /api/projects/{project_id}`: hard-delete a project directory (cannot delete `default`).
-
-## Persistent Storage
-
-SQLite note data is project-scoped by default:
-
-- `storage/projects/default/project.db`
-- `storage/projects/{slug}/project.db`
-
-On startup, the web server ensures a `default` project exists.
-If a legacy `storage/hf_exporter.db` file exists and `default` has no DB yet, it is copied into `storage/projects/default/project.db`.
-
-Override the database path with:
-
-```bash
-export HF_EXPORTER_DB_PATH=/custom/path/hf_exporter.db
-```
-
-The `storage/` directory is intentionally gitignored and should be treated as local durable application state.
-
-## Development
-
-Run lint and tests:
-
-```bash
-uv run ruff check --fix
-uv run pytest
-```
-
-## Docker
-
-Build the image:
-
-```bash
-docker build -t hf-exporter .
-```
-
-Use Docker Compose for the recommended workflows.
-
-Interactive shell mode:
+### 1) Interactive CLI Container
 
 ```bash
 docker compose run --rm hf-exporter
 ```
 
-This starts a normal `bash` shell inside the container. In that shell, use the `hf` helper command:
+Inside the container, use the `hf` helper:
 
 ```bash
 hf "text-generation"
@@ -222,44 +109,91 @@ hf "llama" --fmt json
 hf "gpt" --task text-generation --author openai
 ```
 
-`hf` behavior:
+If `--output` is omitted, `hf` writes to `/output/models.csv` or `/output/models.json`.
+The `/output` directory is mapped to local `exports/`.
 
-- Runs the project CLI from inside the container.
-- Writes output to `/output`, which is mapped to the local `exports/` directory.
-- If `--output` is omitted, it chooses a default file name based on format:
-- CSV output defaults to `/output/models.csv`.
-- JSON output defaults to `/output/models.json`.
-- If you provide `--output`, your path is used instead.
-
-Examples with explicit output:
-
-```bash
-hf "text-generation" --output /output/text-generation.csv
-hf "llama" --fmt json --output /output/llama.json
-```
-
-Direct CLI mode without an interactive shell:
+### 2) Direct CLI Service
 
 ```bash
 docker compose run --rm hf-exporter-cli "text-generation" --output /output/models.csv
 docker compose run --rm hf-exporter-cli "llama" --fmt json --output /output/models.json
 ```
 
-Run the browser API service in Docker Compose:
+### 3) Web Service
 
 ```bash
 docker compose up hf-exporter-web
 ```
 
-Then open `http://localhost:8000` in your browser.
+Open `http://localhost:8111` in your browser.
 
-Authentication in Docker:
+Authentication passthrough:
 
 ```bash
 export HF_TOKEN=your_token_here
 docker compose run --rm hf-exporter
 ```
 
-The Compose services pass `HF_TOKEN` through if it is set in your shell. If it is unset, the container still starts and runs without authentication.
+## Notes, Rankings, and Research Metadata
 
-Docker Compose also mounts the local `storage/` directory into `/storage` and sets `HF_EXPORTER_DB_PATH=/storage/hf_exporter.db`, so note data survives container restarts.
+Each model can have multiple evaluation records with:
+
+- Role
+- Category
+- Model type
+- Labels (tags)
+- Ranking (1-10)
+- Note text
+- Pros
+- Cons
+- Context
+
+These notes are queryable and filterable in both the web app and CLI export workflow.
+
+## API Highlights
+
+- `POST /api/search`: run live Hugging Face search.
+- `GET /api/results`: fetch filtered/sorted/paginated cached results.
+- `GET /api/export/full`: export full cached result set (`fmt=csv|json`).
+- `GET /api/export/filtered`: export currently filtered result set (`fmt=csv|json`).
+- `GET /api/notes/{model_id}` and `POST /api/notes/{model_id}`: read/add model notes.
+- `GET/PUT/DELETE /api/note-entries/{note_id}`: note entry CRUD.
+- `GET /api/records/entries` and `GET /api/records/summary`: records management and summaries.
+- `GET/POST /api/projects`, `POST /api/projects/{project_id}/activate`, `DELETE /api/projects/{project_id}`.
+
+## Storage
+
+Project-scoped SQLite storage:
+
+- `storage/projects/default/project.db`
+- `storage/projects/{slug}/project.db`
+
+The app bootstraps a `default` project automatically.
+If legacy `storage/hf_exporter.db` exists, it is migrated once into `storage/projects/default/project.db` when appropriate.
+
+Environment variables:
+
+- `HF_TOKEN`: optional Hugging Face token.
+- `HF_EXPORTER_DB_PATH`: direct DB path override (primarily CLI flow).
+- `HF_EXPORTER_STORAGE_DIR`: base storage directory for project-aware web flow.
+
+`storage/` is durable local app state and is intentionally ignored by git.
+
+## Development
+
+```bash
+uv run ruff check
+uv run pytest
+```
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Code Of Conduct
+
+See [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
+
+## License
+
+This project is licensed under the MIT License. See [LICENSE](LICENSE).
