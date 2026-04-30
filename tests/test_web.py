@@ -479,6 +479,95 @@ def test_records_summary_and_entries_endpoint(monkeypatch, tmp_path):
     assert entries_payload["items"][0]["modelId"] == "org/a-model"
 
 
+def test_note_labels_are_persisted_and_updatable(monkeypatch, tmp_path):
+    monkeypatch.setenv("HF_EXPORTER_DB_PATH", str(tmp_path / "notes.db"))
+    client = TestClient(web.app)
+
+    created = client.post(
+        "/api/notes/org/tagged-model",
+        json={
+            "role": "main",
+            "category": "llm-stack",
+            "model_type": "GGUF",
+            "ranking": 8,
+            "note_text": "Tagged note",
+            "pros": "",
+            "cons": "",
+            "context_text": "",
+            "labels": ["Vision", "MLX", "vision"],
+        },
+    )
+    assert created.status_code == 201
+    note = created.json()["item"]
+    assert note["labels"] == ["mlx", "vision"]
+
+    note_id = note["id"]
+    updated = client.put(
+        f"/api/note-entries/{note_id}",
+        json={"labels": ["production", "edge"]},
+    )
+    assert updated.status_code == 200
+    assert updated.json()["item"]["labels"] == ["edge", "production"]
+
+    fetched = client.get(f"/api/note-entries/{note_id}")
+    assert fetched.status_code == 200
+    assert fetched.json()["labels"] == ["edge", "production"]
+
+    labels = client.get("/api/labels")
+    assert labels.status_code == 200
+    assert labels.json()["labels"] == ["edge", "mlx", "production", "vision"]
+
+
+def test_label_filters_apply_to_records_and_search_results(monkeypatch, tmp_path):
+    monkeypatch.setenv("HF_EXPORTER_DB_PATH", str(tmp_path / "notes.db"))
+    monkeypatch.setattr(web, "query_models", lambda query, task=None, author=None, library=None: SAMPLE_ROWS)
+    client = TestClient(web.app)
+
+    search = client.post("/api/search", json={"query": "model"})
+    assert search.status_code == 200
+    cache_key = search.json()["cacheKey"]
+
+    client.post(
+        "/api/notes/org/a-model",
+        json={
+            "role": "main",
+            "category": "llm-stack",
+            "model_type": "GGUF",
+            "ranking": 8,
+            "note_text": "Alpha",
+            "pros": "",
+            "cons": "",
+            "context_text": "",
+            "labels": ["vision", "prod"],
+        },
+    )
+    client.post(
+        "/api/notes/org/b-model",
+        json={
+            "role": "candidate",
+            "category": "image-generation",
+            "model_type": "Transformers",
+            "ranking": 5,
+            "note_text": "Bravo",
+            "pros": "",
+            "cons": "",
+            "context_text": "",
+            "labels": ["nlp"],
+        },
+    )
+
+    records = client.get("/api/records/entries", params={"label": "vision"})
+    assert records.status_code == 200
+    assert records.json()["meta"]["total"] == 1
+    assert records.json()["items"][0]["modelId"] == "org/a-model"
+    assert records.json()["items"][0]["labels"] == ["prod", "vision"]
+
+    results = client.get("/api/results", params={"cache_key": cache_key, "note_label": "vision"})
+    assert results.status_code == 200
+    assert results.json()["meta"]["totalFiltered"] == 1
+    assert results.json()["items"][0]["modelId"] == "org/a-model"
+
+
 def test_records_page_route_exists():
     client = TestClient(web.app)
     response = client.get("/records")

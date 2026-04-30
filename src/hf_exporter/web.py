@@ -26,6 +26,7 @@ from hf_exporter.notes_store import (
     delete_notes_for_model,
     find_matching_model_ids,
     get_all_categories,
+    get_all_labels,
     get_all_roles,
     get_database_path,
     get_note,
@@ -99,6 +100,7 @@ class TableState(BaseModel):
     max_ranking: int | None = None
     note_role_category_mode: Literal["and", "or"] = "or"
     sort_by: str = "downloads"
+    note_label: str | None = None
     sort_dir: Literal["asc", "desc"] = "desc"
     page: int = 1
     page_size: int = 25
@@ -113,6 +115,7 @@ class NoteCreateRequest(BaseModel):
     pros: str = ""
     cons: str = ""
     context_text: str = ""
+    labels: list[str] = []
 
     @model_validator(mode="after")
     def validate_payload(self) -> "NoteCreateRequest":
@@ -142,6 +145,7 @@ class NoteUpdateRequest(BaseModel):
     pros: str | None = None
     cons: str | None = None
     context_text: str | None = None
+    labels: list[str] | None = None
 
     @model_validator(mode="after")
     def validate_payload(self) -> "NoteUpdateRequest":
@@ -163,6 +167,7 @@ class NoteUpdateRequest(BaseModel):
                 self.pros,
                 self.cons,
                 self.context_text,
+                self.labels,
             ]
         ):
             raise ValueError("At least one field is required")
@@ -231,6 +236,7 @@ def _filter_rows_by_notes(rows: list[dict[str, Any]], state: TableState) -> list
         state.min_ranking,
         state.max_ranking,
         state.note_text,
+        state.note_label,
     ):
         return rows
 
@@ -242,6 +248,7 @@ def _filter_rows_by_notes(rows: list[dict[str, Any]], state: TableState) -> list
         max_ranking=state.max_ranking,
         text=state.note_text,
         role_category_mode=state.note_role_category_mode,
+        label=state.note_label,
     )
 
     if not matched_model_ids:
@@ -403,6 +410,11 @@ def note_options() -> dict[str, list[str]]:
     return get_note_options()
 
 
+@app.get("/api/labels")
+def list_labels() -> dict[str, list[str]]:
+    return {"labels": get_all_labels()}
+
+
 @app.get("/api/notes/{model_id:path}")
 def get_model_notes(model_id: str) -> dict[str, Any]:
     notes = list_notes(model_id)
@@ -422,6 +434,7 @@ def create_model_note(model_id: str, payload: NoteCreateRequest) -> dict[str, An
         pros=payload.pros,
         cons=payload.cons,
         context_text=payload.context_text,
+        labels=payload.labels,
     )
     notes = list_notes(model_id)
     summary = get_note_summaries([model_id]).get(model_id, {"note_count": 0, "average_ranking": None})
@@ -449,6 +462,7 @@ def update_note_entry(note_id: str, payload: NoteUpdateRequest) -> dict[str, Any
             pros=payload.pros,
             cons=payload.cons,
             context_text=payload.context_text,
+            labels=payload.labels,
         )
     except ValueError as exc:
         status = 404 if "not found" in str(exc).lower() else 400
@@ -505,6 +519,7 @@ def records_entries(
     sort_dir: Literal["asc", "desc"] = "desc",
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=25, ge=1, le=250),
+    label: str | None = None,
 ) -> dict[str, Any]:
     payload = list_record_entries(
         role=role,
@@ -518,6 +533,7 @@ def records_entries(
         sort_dir=sort_dir,
         page=page,
         page_size=page_size,
+        label=label,
     )
     payload["meta"]["databasePath"] = str(get_database_path())
     payload["meta"]["activeProject"] = get_active_project_id()
@@ -621,6 +637,7 @@ def get_results(
     sort_dir: Literal["asc", "desc"] = "desc",
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=25, ge=1, le=250),
+    note_label: str | None = None,
 ) -> dict:
     rows = _get_cached_rows(cache_key)
 
@@ -642,6 +659,7 @@ def get_results(
         min_ranking=min_ranking,
         max_ranking=max_ranking,
         note_role_category_mode=note_role_category_mode,
+        note_label=note_label,
         sort_by=sort_by,
         sort_dir=sort_dir,
         page=page,
@@ -689,6 +707,7 @@ def export_filtered(
     note_role_category_mode: Literal["and", "or"] = "or",
     sort_by: str = Query(default="downloads"),
     sort_dir: Literal["asc", "desc"] = "desc",
+    note_label: str | None = None,
 ) -> FileResponse:
     rows = _get_cached_rows(cache_key)
 
@@ -707,6 +726,7 @@ def export_filtered(
         min_ranking=min_ranking,
         max_ranking=max_ranking,
         note_role_category_mode=note_role_category_mode,
+        note_label=note_label,
         sort_by=sort_by,
         sort_dir=sort_dir,
     )

@@ -491,7 +491,7 @@
 
     .note-badge,
     .ranking-badge,
-    .note-tag {
+    .note-label {
       display: inline-flex;
       align-items: center;
       gap: 4px;
@@ -782,7 +782,7 @@
       margin-bottom: 10px;
     }
 
-    .panel-note-tags {
+    .panel-note-labels {
       display: flex;
       gap: 6px;
       flex-wrap: wrap;
@@ -1196,6 +1196,10 @@
         <div class="field full">
           <label for="drawer-context-text">Context / Use Case</label>
           <textarea id="drawer-context-text" rows="3" placeholder="Deployment target, benchmark setup, or stack context"></textarea>
+        </div>
+        <div class="field full">
+          <label for="drawer-labels">Labels</label>
+          <input id="drawer-labels" placeholder="comma-separated labels: mlx, vision, production" />
         </div>
       </div>
       <div class="note-drawer-help">Use the side drawer to add an evaluation entry without turning the model details view into a full-page form.</div>
@@ -1799,11 +1803,12 @@
           ${notes.map((note) => `
             <div class="panel-note-card">
               <div class="panel-note-header">
-                <div class="panel-note-tags">
-                  <span class="note-tag">${escapeHtml(note.role)}</span>
-                  <span class="note-tag">${escapeHtml(note.category)}</span>
-                  <span class="note-tag">${escapeHtml(note.modelType)}</span>
+                <div class="panel-note-labels">
+                  <span class="note-label">${escapeHtml(note.role)}</span>
+                  <span class="note-label">${escapeHtml(note.category)}</span>
+                  <span class="note-label">${escapeHtml(note.modelType)}</span>
                   <span class="ranking-badge">rank ${escapeHtml(note.ranking)}</span>
+                  ${(note.labels || []).map((label) => `<span class="note-label">#${escapeHtml(label)}</span>`).join("")}
                 </div>
                 <div class="panel-note-created">${formatNoteDate(note.createdAt)}</div>
               </div>
@@ -1898,6 +1903,7 @@
       document.getElementById("drawer-pros").value = "";
       document.getElementById("drawer-cons").value = "";
       document.getElementById("drawer-context-text").value = "";
+      document.getElementById("drawer-labels").value = "";
     }
 
     async function openNoteDrawer(item) {
@@ -1960,6 +1966,10 @@
         pros: document.getElementById("drawer-pros").value,
         cons: document.getElementById("drawer-cons").value,
         context_text: document.getElementById("drawer-context-text").value,
+        labels: document.getElementById("drawer-labels").value
+          .split(",")
+          .map((label) => label.trim().toLowerCase())
+          .filter(Boolean),
       };
 
       const response = await fetch(`/api/notes/${encodeURIComponent(item.modelId).replaceAll("%2F", "/")}`, {

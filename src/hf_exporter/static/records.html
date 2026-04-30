@@ -406,6 +406,24 @@
       border-radius: 999px;
       background: var(--bg-secondary);
     }
+      .label-chip {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 9999px;
+        font-size: 0.68rem;
+        font-weight: 500;
+        background: #dbeafe;
+        color: #1e40af;
+        cursor: pointer;
+        white-space: nowrap;
+        margin: 1px 2px;
+        transition: opacity 0.15s;
+      }
+      html[data-theme="dark"] .label-chip {
+        background: #1e3a5f;
+        color: #93c5fd;
+      }
+      .label-chip:hover { opacity: 0.75; }
 
     .meta-list {
       list-style: none;
@@ -907,6 +925,10 @@
               <label for="filter-text">Search Text</label>
               <input id="filter-text" placeholder="model id or note text" />
             </div>
+            <div class="field full">
+              <label for="filter-label">Filter by Label</label>
+              <input id="filter-label" placeholder="e.g. vision, mlx, production" />
+            </div>
           </div>
           <div class="actions subtle-actions">
             <div class="actions" style="margin-top: 0;">
@@ -929,6 +951,7 @@
                   <th>Category</th>
                   <th>Type</th>
                   <th>Ranking</th>
+                  <th>Labels</th>
                   <th>Updated</th>
                   <th>Actions</th>
                 </tr>
@@ -1013,6 +1036,10 @@
         <div class="field full">
           <label for="form-context">Context</label>
           <textarea id="form-context" rows="3" placeholder="Deployment target, evaluation setup, or stack-specific notes"></textarea>
+        </div>
+        <div class="field full">
+          <label for="form-labels">Labels</label>
+          <input id="form-labels" placeholder="comma-separated labels: mlx, vision, production" />
         </div>
       </div>
       <div class="drawer-help">This drawer is shared for both create and edit. The records table stays visible so you can compare entries while you work.</div>
@@ -1368,6 +1395,10 @@
         pros: document.getElementById("form-pros").value,
         cons: document.getElementById("form-cons").value,
         context_text: document.getElementById("form-context").value,
+        labels: document.getElementById("form-labels").value
+          .split(",")
+          .map((label) => label.trim().toLowerCase())
+          .filter(Boolean),
       };
     }
 
@@ -1383,6 +1414,7 @@
       document.getElementById("form-pros").value = "";
       document.getElementById("form-cons").value = "";
       document.getElementById("form-context").value = "";
+      document.getElementById("form-labels").value = "";
       if (state.options.roles.length) document.getElementById("form-role").value = state.options.roles[0];
       if (state.options.categories.length) document.getElementById("form-category").value = state.options.categories[0];
       if (state.options.modelTypes.length) document.getElementById("form-model-type").value = state.options.modelTypes[0];
@@ -1439,6 +1471,7 @@
       document.getElementById("form-pros").value = item.pros || "";
       document.getElementById("form-cons").value = item.cons || "";
       document.getElementById("form-context").value = item.contextText || "";
+      document.getElementById("form-labels").value = (item.labels || []).join(", ");
       openDrawer();
       requestAnimationFrame(() => {
         document.getElementById("form-role").focus();
@@ -1511,6 +1544,7 @@
       const minRanking = document.getElementById("filter-min-ranking").value;
       const maxRanking = document.getElementById("filter-max-ranking").value;
       const text = document.getElementById("filter-text").value.trim();
+      const label = document.getElementById("filter-label").value.trim();
 
       if (role) params.set("role", role);
       if (category) params.set("category", category);
@@ -1518,6 +1552,7 @@
       if (minRanking) params.set("min_ranking", minRanking);
       if (maxRanking) params.set("max_ranking", maxRanking);
       if (text) params.set("text", text);
+      if (label) params.set("label", label);
 
       params.set("role_category_mode", mode);
       params.set("page", String(state.page));
@@ -1532,7 +1567,7 @@
       const items = payload.items || [];
 
       if (!items.length) {
-        body.innerHTML = '<tr><td colspan="7" style="text-align:center; color: var(--text-tertiary);">No records found.</td></tr>';
+        body.innerHTML = '<tr><td colspan="8" style="text-align:center; color: var(--text-tertiary);">No records found.</td></tr>';
       } else {
         body.innerHTML = items.map((item) => `
           <tr class="record-row" data-note-id="${esc(item.id)}" style="cursor: pointer;">
@@ -1544,6 +1579,7 @@
             <td>${esc(item.category)}</td>
             <td>${esc(item.modelType)}</td>
             <td><span class="badge">${esc(item.ranking)}</span></td>
+            <td>${(item.labels || []).length ? (item.labels || []).map((labelItem) => `<span class="label-chip" data-label="${esc(labelItem)}">${esc(labelItem)}</span>`).join("") : '<span style="color: var(--text-tertiary);">-</span>'}</td>
             <td>${formatDate(item.updatedAt || item.createdAt)}</td>
             <td>
               <div class="actions" style="margin: 0;">
@@ -1558,12 +1594,21 @@
 
       for (const row of body.querySelectorAll("tr.record-row")) {
         row.addEventListener("click", async (e) => {
-          if (e.target.tagName === "BUTTON") return;
+          if (e.target.tagName === "BUTTON" || e.target.classList.contains("label-chip")) return;
           try {
             await openEntryDetail(row.getAttribute("data-note-id"));
           } catch (error) {
             setMessage(error.message, "error");
           }
+        });
+      }
+
+      for (const chip of body.querySelectorAll(".label-chip[data-label]")) {
+        chip.addEventListener("click", (e) => {
+          e.stopPropagation();
+          document.getElementById("filter-label").value = chip.getAttribute("data-label") || "";
+          state.page = 1;
+          fetchEntries().catch((error) => setMessage(error.message, "error"));
         });
       }
 
@@ -1770,6 +1815,10 @@
           <div class="detail-field">
             <div class="detail-label">Ranking</div>
             <div class="detail-value" style="font-weight: 600;">${esc(item.ranking)}/10</div>
+          </div>
+          <div class="detail-field">
+            <div class="detail-label">Labels</div>
+            <div class="detail-value">${(item.labels || []).length ? (item.labels || []).map((labelItem) => `<span class="label-chip" data-label="${esc(labelItem)}">${esc(labelItem)}</span>`).join("") : "-"}</div>
           </div>
         </div>
         

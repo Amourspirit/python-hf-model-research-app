@@ -123,6 +123,21 @@ def _initialize_database(connection: sqlite3.Connection) -> None:
             name TEXT NOT NULL UNIQUE,
             created_at TEXT NOT NULL
         );
+
+            CREATE TABLE IF NOT EXISTS labels (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL UNIQUE,
+                created_at TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS note_labels (
+                note_id TEXT NOT NULL REFERENCES model_notes(id) ON DELETE CASCADE,
+                label_id TEXT NOT NULL REFERENCES labels(id) ON DELETE CASCADE,
+                PRIMARY KEY (note_id, label_id)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_note_labels_label_id
+                ON note_labels(label_id);
         """
     )
     try:
@@ -132,6 +147,32 @@ def _initialize_database(connection: sqlite3.Connection) -> None:
     connection.commit()
 
 
+def _ensure_label(connection: sqlite3.Connection, name: str) -> str:
+    name = name.strip().lower()
+    now_iso = datetime.now(timezone.utc).isoformat()
+    label_id = str(uuid.uuid4())
+    connection.execute(
+        "INSERT OR IGNORE INTO labels (id, name, created_at) VALUES (?, ?, ?)",
+        (label_id, name, now_iso),
+    )
+    row = connection.execute("SELECT id FROM labels WHERE name = ?", (name,)).fetchone()
+    return str(row["id"])
+
+
+def _get_labels_for_notes(connection: sqlite3.Connection, note_ids: list[str]) -> dict[str, list[str]]:
+    if not note_ids:
+        return {}
+    placeholders = ", ".join("?" for _ in note_ids)
+    rows = connection.execute(
+        f"SELECT nl.note_id, l.name FROM note_labels nl JOIN labels l ON l.id = nl.label_id WHERE nl.note_id IN ({placeholders}) ORDER BY l.name",
+        note_ids,
+    ).fetchall()
+    result: dict[str, list[str]] = {}
+    for row in rows:
+        result.setdefault(str(row["note_id"]), []).append(str(row["name"]))
+    return result
+
+
 def has_note_filters(
     role: str | None = None,
     category: str | None = None,
@@ -139,8 +180,9 @@ def has_note_filters(
     min_ranking: int | None = None,
     max_ranking: int | None = None,
     text: str | None = None,
+    label: str | None = None,
 ) -> bool:
-    return any([role, category, model_type, min_ranking is not None, max_ranking is not None, text])
+    return any([role, category, model_type, min_ranking is not None, max_ranking is not None, text, label])
 
 
 def create_note(
@@ -153,6 +195,7 @@ def create_note(
     pros: str,
     cons: str,
     context_text: str,
+    labels: list[str] | None = None,
 ) -> dict[str, Any]:
     now_iso = datetime.now(timezone.utc).isoformat()
     payload = {
@@ -193,6 +236,15 @@ def create_note(
                 payload["updated_at"],
             ),
         )
+        if labels:
+            for label_name in labels:
+                label_name = label_name.strip().lower()
+                if label_name:
+                    label_id = _ensure_label(connection, label_name)
+                    connection.execute(
+                        "INSERT OR IGNORE INTO note_labels (note_id, label_id) VALUES (?, ?)",
+                        (payload["id"], label_id),
+                    )
         connection.commit()
 
     return get_note(payload["id"])
@@ -209,10 +261,12 @@ def get_note(note_id: str) -> dict[str, Any]:
             """,
             (note_id,),
         ).fetchone()
-
-    if not row:
-        raise ValueError(f"Note not found: {note_id}")
-    return _row_to_note(row)
+        if not row:
+            raise ValueError(f"Note not found: {note_id}")
+        note = _row_to_note(row)
+        labels_map = _get_labels_for_notes(connection, [note_id])
+    note["labels"] = labels_map.get(note_id, [])
+    return note
 
 
 def list_notes(model_id: str) -> list[dict[str, Any]]:
@@ -227,7 +281,12 @@ def list_notes(model_id: str) -> list[dict[str, Any]]:
             """,
             (model_id,),
         ).fetchall()
-    return [_row_to_note(row) for row in rows]
+        notes = [_row_to_note(row) for row in rows]
+        if notes:
+            labels_map = _get_labels_for_notes(connection, [n["id"] for n in notes])
+            for note in notes:
+                note["labels"] = labels_map.get(note["id"], [])
+    return notes
 
 
 def list_notes_for_models(model_ids: list[str]) -> dict[str, list[dict[str, Any]]]:
@@ -247,9 +306,14 @@ def list_notes_for_models(model_ids: list[str]) -> dict[str, list[dict[str, Any]
             model_ids,
         ).fetchall()
 
-    notes_by_model: dict[str, list[dict[str, Any]]] = {model_id: [] for model_id in model_ids}
-    for row in rows:
-        note = _row_to_note(row)
+        all_notes = [_row_to_note(row) for row in rows]
+        if all_notes:
+            labels_map = _get_labels_for_notes(connection, [n["id"] for n in all_notes])
+            for note in all_notes:
+                note["labels"] = labels_map.get(note["id"], [])
+
+    notes_by_model: dict[str, list[dict[str, Any]]] = {mid: [] for mid in model_ids}
+    for note in all_notes:
         notes_by_model.setdefault(note["modelId"], []).append(note)
     return notes_by_model
 
@@ -291,53 +355,60 @@ def find_matching_model_ids(
     max_ranking: int | None = None,
     text: str | None = None,
     role_category_mode: str = "and",
+    label: str | None = None,
 ) -> set[str]:
-    if not has_note_filters(role, category, model_type, min_ranking, max_ranking, text):
+    if not has_note_filters(role, category, model_type, min_ranking, max_ranking, text, label):
         return set()
 
-    query = ["SELECT DISTINCT model_id FROM model_notes WHERE 1 = 1"]
+    joins = ""
+    where_clauses = ["1 = 1"]
     params: list[Any] = []
 
+    if label:
+        joins = (
+            " JOIN note_labels _nl ON _nl.note_id = mn.id"
+            " JOIN labels _l ON _l.id = _nl.label_id"
+        )
+        where_clauses.append("LOWER(_l.name) = LOWER(?)")
+        params.append(label.strip())
+
     if role and category and role_category_mode.lower() == "or":
-        query.append("AND (role = ? OR category = ?)")
+        where_clauses.append("(mn.role = ? OR mn.category = ?)")
         params.extend([role, category])
     else:
         if role:
-            query.append("AND role = ?")
+            where_clauses.append("mn.role = ?")
             params.append(role)
-
         if category:
-            query.append("AND category = ?")
+            where_clauses.append("mn.category = ?")
             params.append(category)
 
     if model_type:
-        query.append("AND model_type = ?")
+        where_clauses.append("mn.model_type = ?")
         params.append(model_type)
 
     if min_ranking is not None:
-        query.append("AND ranking >= ?")
+        where_clauses.append("mn.ranking >= ?")
         params.append(min_ranking)
 
     if max_ranking is not None:
-        query.append("AND ranking <= ?")
+        where_clauses.append("mn.ranking <= ?")
         params.append(max_ranking)
 
     if text:
         like_value = f"%{text.strip().lower()}%"
-        query.append(
-            """
-            AND (
-                LOWER(note_text) LIKE ? OR
-                LOWER(pros) LIKE ? OR
-                LOWER(cons) LIKE ? OR
-                LOWER(context_text) LIKE ?
-            )
-            """
+        where_clauses.append(
+            "(LOWER(mn.note_text) LIKE ? OR LOWER(mn.pros) LIKE ? OR"
+            " LOWER(mn.cons) LIKE ? OR LOWER(mn.context_text) LIKE ?)"
         )
         params.extend([like_value, like_value, like_value, like_value])
 
+    sql = (
+        f"SELECT DISTINCT mn.model_id FROM model_notes mn{joins}"
+        f" WHERE {' AND '.join(where_clauses)}"
+    )
     with _get_connection() as connection:
-        rows = connection.execute("\n".join(query), params).fetchall()
+        rows = connection.execute(sql, params).fetchall()
 
     return {str(row["model_id"]) for row in rows}
 
@@ -352,6 +423,7 @@ def update_note(
     pros: str | None = None,
     cons: str | None = None,
     context_text: str | None = None,
+    labels: list[str] | None = None,
 ) -> dict[str, Any]:
     updates: dict[str, Any] = {}
 
@@ -373,7 +445,8 @@ def update_note(
         updates["context_text"] = context_text.strip()
 
     if not updates:
-        raise ValueError("No fields were provided for update")
+        if labels is None:
+            raise ValueError("No fields were provided for update")
 
     updates["updated_at"] = datetime.now(timezone.utc).isoformat()
 
@@ -385,10 +458,19 @@ def update_note(
             f"UPDATE model_notes SET {set_clause} WHERE id = ?",
             params,
         )
+        if cursor.rowcount == 0:
+            raise ValueError(f"Note not found: {note_id}")
+        if labels is not None:
+            connection.execute("DELETE FROM note_labels WHERE note_id = ?", (note_id,))
+            for label_name in labels:
+                label_name = label_name.strip().lower()
+                if label_name:
+                    label_id = _ensure_label(connection, label_name)
+                    connection.execute(
+                        "INSERT OR IGNORE INTO note_labels (note_id, label_id) VALUES (?, ?)",
+                        (note_id, label_id),
+                    )
         connection.commit()
-
-    if cursor.rowcount == 0:
-        raise ValueError(f"Note not found: {note_id}")
 
     return get_note(note_id)
 
@@ -424,6 +506,7 @@ def list_record_entries(
     sort_dir: str = "desc",
     page: int = 1,
     page_size: int = 25,
+    label: str | None = None,
 ) -> dict[str, Any]:
     where_clause, params = _build_filters(
         role=role,
@@ -434,6 +517,17 @@ def list_record_entries(
         max_ranking=max_ranking,
         role_category_mode=role_category_mode,
     )
+
+    if label:
+        label_sub = (
+            " AND id IN ("
+            "SELECT nl.note_id FROM note_labels nl"
+            " JOIN labels l ON l.id = nl.label_id"
+            " WHERE LOWER(l.name) = LOWER(?)"
+            ")"
+        )
+        where_clause = where_clause + label_sub
+        params = params + [label.strip()]
 
     allowed_sort = {
         "model_id": "model_id",
@@ -470,9 +564,15 @@ def list_record_entries(
             params + [safe_page_size, offset],
         ).fetchall()
 
+        notes = [_row_to_note(row) for row in rows]
+        if notes:
+            labels_map = _get_labels_for_notes(connection, [n["id"] for n in notes])
+            for note in notes:
+                note["labels"] = labels_map.get(note["id"], [])
+
     total_pages = max(1, (total + safe_page_size - 1) // safe_page_size)
     return {
-        "items": [_row_to_note(row) for row in rows],
+        "items": notes,
         "meta": {
             "total": total,
             "page": min(safe_page, total_pages),
@@ -594,6 +694,7 @@ def _row_to_note(row: sqlite3.Row) -> dict[str, Any]:
         "contextText": row["context_text"],
         "createdAt": row["created_at"],
         "updatedAt": row["updated_at"],
+        "labels": [],
     }
 
 
@@ -685,3 +786,10 @@ def delete_custom_category(category_id: str) -> bool:
         result = connection.execute("DELETE FROM custom_categories WHERE id = ?", (category_id,))
         connection.commit()
     return result.rowcount > 0
+
+
+def get_all_labels() -> list[str]:
+    """Return all label names in alphabetical order."""
+    with _get_connection() as connection:
+        rows = connection.execute("SELECT name FROM labels ORDER BY name").fetchall()
+    return [str(row["name"]) for row in rows]
