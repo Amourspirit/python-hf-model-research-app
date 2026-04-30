@@ -429,6 +429,18 @@ def records_entries(
     return payload
 
 
+@app.get("/api/models/{model_id:path}")
+def get_model_metadata(model_id: str) -> dict[str, Any]:
+    """Fetch HuggingFace model metadata by model ID."""
+    try:
+        from hf_exporter.service import get_api, normalize_model
+        api = get_api()
+        model_info = api.model_info(model_id)
+        return normalize_model(model_info)
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=f"Model not found: {str(e)}")
+
+
 @app.post("/api/search")
 def search_models(payload: SearchRequest) -> dict:
     _purge_expired_cache()

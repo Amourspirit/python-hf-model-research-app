@@ -431,6 +431,123 @@
       border: 1px solid var(--border);
     }
 
+    .entry-detail-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.4);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+      z-index: 25;
+    }
+
+    .entry-detail-backdrop.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .entry-detail-panel {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: 400px;
+      max-width: 95vw;
+      height: 100vh;
+      background: var(--bg-primary);
+      border-left: 1px solid var(--border);
+      box-shadow: var(--shadow-lg);
+      transform: translateX(100%);
+      transition: transform 0.25s ease;
+      z-index: 35;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+    }
+
+    .entry-detail-panel.open {
+      transform: translateX(0);
+    }
+
+    .detail-panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 18px 20px 14px;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      background: var(--bg-primary);
+      z-index: 1;
+    }
+
+    .detail-panel-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .detail-panel-close {
+      background: transparent;
+      border: none;
+      font-size: 1.2rem;
+      cursor: pointer;
+      color: var(--text-tertiary);
+      padding: 4px 8px;
+      border-radius: 6px;
+      line-height: 1;
+    }
+
+    .detail-panel-close:hover {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+    }
+
+    .detail-panel-body {
+      padding: 18px 20px;
+      flex: 1;
+    }
+
+    .detail-section {
+      margin-bottom: 20px;
+    }
+
+    .detail-section-title {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-tertiary);
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .detail-field {
+      margin-bottom: 12px;
+      font-size: 0.9rem;
+    }
+
+    .detail-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-tertiary);
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .detail-value {
+      color: var(--text-primary);
+      word-break: break-word;
+      padding: 8px 10px;
+      background: var(--bg-secondary);
+      border-radius: 6px;
+      border: 1px solid var(--border);
+    }
+
+    .detail-value.mono {
+      font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      font-size: 0.82rem;
+    }
+
     @media (max-width: 980px) {
       .layout { grid-template-columns: 1fr; }
       .grid { grid-template-columns: 1fr 1fr; }
@@ -569,6 +686,15 @@
     </div>
   </div>
 
+  <div id="entry-detail-backdrop" class="entry-detail-backdrop"></div>
+  <aside id="entry-detail-panel" class="entry-detail-panel" aria-hidden="true" role="dialog" aria-modal="true">
+    <div class="detail-panel-header">
+      <div class="detail-panel-title" id="detail-panel-title">Entry Details</div>
+      <button id="entry-detail-close" class="detail-panel-close" title="Close">✕</button>
+    </div>
+    <div class="detail-panel-body" id="detail-panel-body"></div>
+  </aside>
+
   <div id="drawer-backdrop" class="drawer-backdrop"></div>
   <aside id="record-drawer" class="drawer" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="drawer-title">
     <div class="drawer-header">
@@ -660,6 +786,9 @@
     const statusEl = document.getElementById("status");
     const drawerEl = document.getElementById("record-drawer");
     const drawerBackdropEl = document.getElementById("drawer-backdrop");
+    const detailPanelEl = document.getElementById("entry-detail-panel");
+    const detailBackdropEl = document.getElementById("entry-detail-backdrop");
+    const detailPanelBodyEl = document.getElementById("detail-panel-body");
 
     function esc(v) {
       return String(v ?? "")
@@ -880,7 +1009,7 @@
         body.innerHTML = '<tr><td colspan="7" style="text-align:center; color: var(--text-tertiary);">No records found.</td></tr>';
       } else {
         body.innerHTML = items.map((item) => `
-          <tr>
+          <tr class="record-row" data-note-id="${esc(item.id)}" style="cursor: pointer;">
             <td>
               <div class="mono">${esc(item.modelId)}</div>
               <div class="badge" style="margin-top: 6px;">${esc(item.id)}</div>
@@ -901,7 +1030,18 @@
         `).join("");
       }
 
-      for (const button of body.querySelectorAll("button[data-edit]")) {
+      for (const row of body.querySelectorAll("tr.record-row")) {
+        row.addEventListener("click", async (e) => {
+          if (e.target.tagName === "BUTTON") return;
+          try {
+            await openEntryDetail(row.getAttribute("data-note-id"));
+          } catch (error) {
+            setMessage(error.message, "error");
+          }
+        });
+      }
+
+      for (const button of body.querySelectorAll("tr td button[data-edit]")) {
         button.addEventListener("click", async () => {
           try {
             await openDrawerForEdit(button.getAttribute("data-edit"));
@@ -911,7 +1051,7 @@
         });
       }
 
-      for (const button of body.querySelectorAll("button[data-delete]")) {
+      for (const button of body.querySelectorAll("tr td button[data-delete]")) {
         button.addEventListener("click", async () => {
           if (!confirm("Delete this record entry?")) return;
           try {
@@ -922,7 +1062,7 @@
         });
       }
 
-      for (const button of body.querySelectorAll("button[data-delete-model]")) {
+      for (const button of body.querySelectorAll("tr td button[data-delete-model]")) {
         button.addEventListener("click", async () => {
           const modelId = button.getAttribute("data-delete-model");
           if (!confirm(`Delete all entries for ${modelId}?`)) return;
@@ -942,6 +1082,7 @@
       const response = await fetch(`/api/records/entries?${queryParams().toString()}`);
       if (!response.ok) throw new Error("Failed to fetch records");
       const payload = await response.json();
+      state.currentItems = payload.items || [];
       renderRecords(payload);
     }
 
@@ -1023,9 +1164,142 @@
       }
     });
 
+    async function openEntryDetail(noteId) {
+      const item = state.currentItems?.find((i) => i.id === noteId);
+      if (!item) throw new Error("Entry not found");
+      
+      const createdAt = new Date(item.createdAt).toLocaleString();
+      const updatedAt = item.updatedAt ? new Date(item.updatedAt).toLocaleString() : createdAt;
+      
+      document.getElementById("detail-panel-title").textContent = `Entry: ${item.id.slice(0, 8)}...`;
+      detailPanelBodyEl.innerHTML = "<div style=\"padding: 20px; text-align: center; color: var(--text-tertiary);\">Loading model details...</div>";
+      detailPanelEl.classList.add("open");
+      detailBackdropEl.classList.add("open");
+      detailPanelEl.setAttribute("aria-hidden", "false");
+      
+      let modelData = null;
+      try {
+        const response = await fetch(`/api/models/${encodeURIComponent(item.modelId).replaceAll("%2F", "/")}`);
+        if (response.ok) {
+          modelData = await response.json();
+        }
+      } catch (error) {
+        console.warn("Failed to fetch model metadata:", error);
+      }
+      
+      const hfUrl = item.modelId ? `https://huggingface.co/${encodeURIComponent(item.modelId).replaceAll("%2F", "/")}` : null;
+      
+      detailPanelBodyEl.innerHTML = `
+        ${modelData ? `
+        <div class="detail-section">
+          <div class="detail-section-title">Model Card</div>
+          <div class="detail-field">
+            <div class="detail-label">Author</div>
+            <div class="detail-value">${esc(modelData.author || "-")}</div>
+          </div>
+          <div class="detail-field">
+            <div class="detail-label">Downloads</div>
+            <div class="detail-value">${(modelData.downloads ?? 0).toLocaleString()}</div>
+          </div>
+          <div class="detail-field">
+            <div class="detail-label">Likes</div>
+            <div class="detail-value">${(modelData.likes ?? 0).toLocaleString()}</div>
+          </div>
+          <div class="detail-field">
+            <div class="detail-label">Task</div>
+            <div class="detail-value">${esc(modelData.pipeline_tag || "-")}</div>
+          </div>
+          <div class="detail-field">
+            <div class="detail-label">Library</div>
+            <div class="detail-value">${esc(modelData.library_name || "-")}</div>
+          </div>
+          ${hfUrl ? `<a href="${hfUrl}" target="_blank" rel="noopener noreferrer" style="display: inline-block; margin-top: 12px; padding: 8px 12px; background: var(--accent); color: white; border-radius: 6px; text-decoration: none; font-size: 0.9rem; transition: var(--transition);\">View on Hugging Face ↗</a>` : ""}
+        </div>
+        ` : ""}
+        
+        <div class="detail-section">
+          <div class="detail-label">Model ID</div>
+          <div class="detail-value mono">${esc(item.modelId)}</div>
+        </div>
+        
+        <div class="detail-section">
+          <div class="detail-label">Entry ID</div>
+          <div class="detail-value mono" style="font-size: 0.8rem;">${esc(item.id)}</div>
+        </div>
+        
+        <div class="detail-section">
+          <div class="detail-section-title">Evaluation Metadata</div>
+          <div class="detail-field">
+            <div class="detail-label">Role</div>
+            <div class="detail-value">${esc(item.role)}</div>
+          </div>
+          <div class="detail-field">
+            <div class="detail-label">Category</div>
+            <div class="detail-value">${esc(item.category)}</div>
+          </div>
+          <div class="detail-field">
+            <div class="detail-label">Model Type</div>
+            <div class="detail-value">${esc(item.modelType)}</div>
+          </div>
+          <div class="detail-field">
+            <div class="detail-label">Ranking</div>
+            <div class="detail-value" style="font-weight: 600;">${esc(item.ranking)}/10</div>
+          </div>
+        </div>
+        
+        ${item.noteText ? `
+        <div class="detail-section">
+          <div class="detail-label">Notes</div>
+          <div class="detail-value" style="white-space: pre-wrap;">${esc(item.noteText)}</div>
+        </div>
+        ` : ""}
+        
+        ${item.pros ? `
+        <div class="detail-section">
+          <div class="detail-label">Pros</div>
+          <div class="detail-value" style="white-space: pre-wrap;">${esc(item.pros)}</div>
+        </div>
+        ` : ""}
+        
+        ${item.cons ? `
+        <div class="detail-section">
+          <div class="detail-label">Cons</div>
+          <div class="detail-value" style="white-space: pre-wrap;">${esc(item.cons)}</div>
+        </div>
+        ` : ""}
+        
+        ${item.contextText ? `
+        <div class="detail-section">
+          <div class="detail-label">Context</div>
+          <div class="detail-value" style="white-space: pre-wrap;">${esc(item.contextText)}</div>
+        </div>
+        ` : ""}
+        
+        <div class="detail-section" style="margin-bottom: 0;">
+          <div class="detail-label">Timestamps</div>
+          <div class="detail-field" style="margin: 0;">
+            <div style="font-size: 0.75rem; color: var(--text-tertiary);">Created</div>
+            <div style="font-size: 0.85rem; color: var(--text-secondary);">${esc(createdAt)}</div>
+          </div>
+          <div class="detail-field" style="margin-top: 8px; margin-bottom: 0;">
+            <div style="font-size: 0.75rem; color: var(--text-tertiary);">Updated</div>
+            <div style="font-size: 0.85rem; color: var(--text-secondary);">${esc(updatedAt)}</div>
+          </div>
+        </div>
+      `;
+    }
+
+    function closeEntryDetail() {
+      detailPanelEl.classList.remove("open");
+      detailBackdropEl.classList.remove("open");
+      detailPanelEl.setAttribute("aria-hidden", "true");
+    }
+
     document.getElementById("cancel-edit").addEventListener("click", closeDrawer);
     document.getElementById("drawer-close").addEventListener("click", closeDrawer);
+    document.getElementById("entry-detail-close").addEventListener("click", closeEntryDetail);
     drawerBackdropEl.addEventListener("click", closeDrawer);
+    detailBackdropEl.addEventListener("click", closeEntryDetail);
 
     document.getElementById("prev-page").addEventListener("click", async () => {
       if (state.page <= 1) return;
