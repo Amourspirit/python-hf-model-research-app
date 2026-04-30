@@ -9,6 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <style>
     :root {
+      --site-max-width: 1280px;
       /* Light mode */
       --bg-primary: #ffffff;
       --bg-secondary: #f8fafc;
@@ -82,7 +83,7 @@
     }
 
     .container {
-      max-width: 1280px;
+      max-width: var(--site-max-width);
       margin: 0 auto;
       padding: 28px 20px;
     }
@@ -133,38 +134,99 @@
       font-weight: 400;
     }
 
-    .theme-toggle {
-      display: flex;
+    .settings-trigger {
+      width: 40px;
+      height: 40px;
+      padding: 0;
+      display: inline-flex;
       align-items: center;
-      gap: 8px;
-      background: var(--bg-primary);
-      border: 1px solid var(--border);
+      justify-content: center;
       border-radius: 8px;
-      padding: 6px;
-      cursor: pointer;
-      transition: var(--transition);
-      box-shadow: var(--shadow-sm);
-    }
-
-    .theme-toggle:hover {
-      box-shadow: var(--shadow-md);
-      border-color: var(--accent-primary);
-    }
-
-    .theme-toggle button {
-      background: transparent;
-      border: none;
-      cursor: pointer;
-      padding: 6px 10px;
-      border-radius: 6px;
-      transition: var(--transition);
-      font-size: 1.2rem;
+      border: 1px solid var(--border);
+      background: var(--bg-primary);
       color: var(--text-secondary);
+      font-size: 1.1rem;
     }
 
-    .theme-toggle button.active {
-      background: var(--bg-tertiary);
+    .settings-trigger:hover {
+      border-color: var(--accent-primary);
       color: var(--accent-primary);
+      box-shadow: var(--shadow-md);
+    }
+
+    .site-settings-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.45);
+      opacity: 0;
+      pointer-events: none;
+      transition: var(--transition);
+      z-index: 98;
+    }
+
+    .site-settings-backdrop.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .site-settings-panel {
+      position: fixed;
+      top: 0;
+      right: 0;
+      height: 100vh;
+      width: min(440px, 100vw);
+      background: var(--bg-primary);
+      border-left: 1px solid var(--border);
+      box-shadow: var(--shadow-xl);
+      transform: translateX(100%);
+      transition: transform 0.24s ease;
+      z-index: 99;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .site-settings-panel.open {
+      transform: translateX(0);
+    }
+
+    .site-settings-panel-header {
+      padding: 18px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .site-settings-panel-header h2 {
+      font-size: 1.02rem;
+    }
+
+    .site-settings-panel-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 18px;
+      display: grid;
+      gap: 12px;
+      align-content: start;
+    }
+
+    .site-settings-meta {
+      color: var(--text-secondary);
+      font-size: 0.85rem;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--bg-secondary);
+      line-height: 1.5;
+    }
+
+    .site-settings-panel-footer {
+      padding: 14px 18px;
+      border-top: 1px solid var(--border);
+      background: var(--bg-primary);
+      display: grid;
+      gap: 10px;
     }
 
     .card {
@@ -934,10 +996,7 @@
       </div>
       <div class="header-actions">
         <a class="nav-link" href="/records">Records Manager</a>
-        <div class="theme-toggle" id="theme-toggle">
-          <button id="light-mode" class="active" title="Light mode">☀️</button>
-          <button id="dark-mode" title="Dark mode">🌙</button>
-        </div>
+        <button id="site-settings-open" class="settings-trigger" title="Site settings" aria-label="Open site settings">⚙️</button>
       </div>
     </div>
 
@@ -1127,32 +1186,210 @@
     </div>
   </aside>
 
+  <div class="site-settings-backdrop" id="site-settings-backdrop"></div>
+  <aside class="site-settings-panel" id="site-settings-panel" role="dialog" aria-modal="true" aria-labelledby="site-settings-title">
+    <div class="site-settings-panel-header">
+      <h2 id="site-settings-title">Site Settings</h2>
+      <button class="secondary" id="site-settings-close" title="Close">✕</button>
+    </div>
+    <div class="site-settings-panel-body">
+      <div class="field">
+        <label for="site-theme-mode">Theme Mode</label>
+        <select id="site-theme-mode">
+          <option value="auto">Auto (System)</option>
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="site-max-width">Max Page Width (px)</label>
+        <input id="site-max-width" type="number" min="960" max="1920" step="10" />
+      </div>
+      <div class="site-settings-meta">
+        Selected mode: <strong id="site-selected-theme">Auto (System)</strong><br />
+        Effective theme: <strong id="site-effective-theme">Light</strong>
+      </div>
+      <div id="site-settings-message" class="message-box muted" style="margin-bottom: 0;">Adjust theme and width, then save.</div>
+    </div>
+    <div class="site-settings-panel-footer">
+      <button class="primary" id="site-settings-save">Save Site Settings</button>
+      <button class="secondary" id="site-settings-reset">Reset to Defaults</button>
+    </div>
+  </aside>
+
   <script>
-    function initTheme() {
-      const savedTheme = localStorage.getItem("theme") || "light";
-      document.documentElement.setAttribute("data-theme", savedTheme);
-      updateThemeButtons(savedTheme);
+    const SITE_SETTINGS_KEY = "hfSiteSettings";
+    const SITE_SETTINGS_VERSION = 1;
+    const SITE_MIN_WIDTH = 960;
+    const SITE_MAX_WIDTH = 1920;
+    const SITE_DEFAULTS = {
+      version: SITE_SETTINGS_VERSION,
+      themeMode: "auto",
+      maxPageWidth: 1280,
+    };
+
+    let siteSettings = null;
+    let systemThemeMediaQuery = null;
+
+    function normalizeThemeMode(value) {
+      return value === "light" || value === "dark" || value === "auto" ? value : SITE_DEFAULTS.themeMode;
     }
 
-    function updateThemeButtons(theme) {
-      document.getElementById("light-mode").classList.toggle("active", theme === "light");
-      document.getElementById("dark-mode").classList.toggle("active", theme === "dark");
+    function normalizeWidth(value) {
+      const parsed = Number.parseInt(String(value ?? ""), 10);
+      if (!Number.isFinite(parsed)) {
+        return SITE_DEFAULTS.maxPageWidth;
+      }
+      return Math.min(SITE_MAX_WIDTH, Math.max(SITE_MIN_WIDTH, parsed));
     }
 
-    function setTheme(theme) {
-      document.documentElement.setAttribute("data-theme", theme);
-      localStorage.setItem("theme", theme);
-      updateThemeButtons(theme);
+    function normalizeSiteSettings(input = {}) {
+      return {
+        version: SITE_SETTINGS_VERSION,
+        themeMode: normalizeThemeMode(input.themeMode),
+        maxPageWidth: normalizeWidth(input.maxPageWidth),
+      };
     }
 
-    document.getElementById("light-mode").addEventListener("click", () => setTheme("light"));
-    document.getElementById("dark-mode").addEventListener("click", () => setTheme("dark"));
-
-    if (!localStorage.getItem("theme") && window.matchMedia("(prefers-color-scheme: dark)").matches) {
-      setTheme("dark");
+    function resolveEffectiveTheme(themeMode) {
+      if (themeMode === "light" || themeMode === "dark") {
+        return themeMode;
+      }
+      if (!systemThemeMediaQuery) {
+        systemThemeMediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+      }
+      return systemThemeMediaQuery.matches ? "dark" : "light";
     }
 
-    initTheme();
+    function getThemeModeLabel(themeMode) {
+      if (themeMode === "light") return "Light";
+      if (themeMode === "dark") return "Dark";
+      return "Auto (System)";
+    }
+
+    function writeSiteSettings(settings) {
+      localStorage.setItem(SITE_SETTINGS_KEY, JSON.stringify(settings));
+      localStorage.setItem("theme", resolveEffectiveTheme(settings.themeMode));
+    }
+
+    function readSiteSettings() {
+      let parsed = null;
+      try {
+        parsed = JSON.parse(localStorage.getItem(SITE_SETTINGS_KEY) || "null");
+      } catch {
+        parsed = null;
+      }
+
+      if (!parsed || typeof parsed !== "object") {
+        const legacyTheme = localStorage.getItem("theme");
+        return normalizeSiteSettings({
+          themeMode: legacyTheme === "light" || legacyTheme === "dark" ? legacyTheme : SITE_DEFAULTS.themeMode,
+          maxPageWidth: SITE_DEFAULTS.maxPageWidth,
+        });
+      }
+
+      return normalizeSiteSettings(parsed);
+    }
+
+    function showSiteSettingsMessage(text, variant = "muted") {
+      const el = document.getElementById("site-settings-message");
+      el.textContent = text;
+      el.className = `message-box ${variant}`;
+    }
+
+    function applySiteSettings(settings, syncControls = true) {
+      siteSettings = normalizeSiteSettings(settings);
+      const effectiveTheme = resolveEffectiveTheme(siteSettings.themeMode);
+
+      document.documentElement.setAttribute("data-theme", effectiveTheme);
+      document.documentElement.style.setProperty("--site-max-width", `${siteSettings.maxPageWidth}px`);
+
+      if (syncControls) {
+        const modeInput = document.getElementById("site-theme-mode");
+        const widthInput = document.getElementById("site-max-width");
+        modeInput.value = siteSettings.themeMode;
+        widthInput.value = String(siteSettings.maxPageWidth);
+      }
+
+      document.getElementById("site-selected-theme").textContent = getThemeModeLabel(siteSettings.themeMode);
+      document.getElementById("site-effective-theme").textContent = effectiveTheme === "dark" ? "Dark" : "Light";
+    }
+
+    function saveSiteSettingsFromForm() {
+      const modeInput = document.getElementById("site-theme-mode");
+      const widthInput = document.getElementById("site-max-width");
+      const width = Number.parseInt(widthInput.value, 10);
+
+      if (!Number.isFinite(width)) {
+        showSiteSettingsMessage("Max page width must be a number.", "error");
+        return;
+      }
+      if (width < SITE_MIN_WIDTH || width > SITE_MAX_WIDTH) {
+        showSiteSettingsMessage(`Max page width must be between ${SITE_MIN_WIDTH}px and ${SITE_MAX_WIDTH}px.`, "error");
+        return;
+      }
+
+      const nextSettings = normalizeSiteSettings({
+        themeMode: modeInput.value,
+        maxPageWidth: width,
+      });
+
+      writeSiteSettings(nextSettings);
+      applySiteSettings(nextSettings);
+      showSiteSettingsMessage("Site settings saved.", "success");
+    }
+
+    function resetSiteSettings() {
+      const defaults = normalizeSiteSettings(SITE_DEFAULTS);
+      writeSiteSettings(defaults);
+      applySiteSettings(defaults);
+      showSiteSettingsMessage("Site settings reset to defaults.", "success");
+    }
+
+    function openSiteSettingsPanel() {
+      state.siteSettingsOpen = true;
+      document.getElementById("site-settings-panel").classList.add("open");
+      document.getElementById("site-settings-backdrop").classList.add("open");
+      syncBodyScrollLock();
+    }
+
+    function closeSiteSettingsPanel() {
+      state.siteSettingsOpen = false;
+      document.getElementById("site-settings-panel").classList.remove("open");
+      document.getElementById("site-settings-backdrop").classList.remove("open");
+      syncBodyScrollLock();
+    }
+
+    function initSiteSettings() {
+      const initialSettings = readSiteSettings();
+      writeSiteSettings(initialSettings);
+      applySiteSettings(initialSettings);
+
+      document.getElementById("site-settings-open").addEventListener("click", openSiteSettingsPanel);
+      document.getElementById("site-settings-close").addEventListener("click", closeSiteSettingsPanel);
+      document.getElementById("site-settings-backdrop").addEventListener("click", closeSiteSettingsPanel);
+      document.getElementById("site-settings-save").addEventListener("click", saveSiteSettingsFromForm);
+      document.getElementById("site-settings-reset").addEventListener("click", resetSiteSettings);
+
+      systemThemeMediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+      systemThemeMediaQuery.addEventListener("change", () => {
+        if (siteSettings?.themeMode === "auto") {
+          applySiteSettings(siteSettings, false);
+          writeSiteSettings(siteSettings);
+        }
+      });
+
+      window.addEventListener("storage", (event) => {
+        if (event.key !== SITE_SETTINGS_KEY) {
+          return;
+        }
+        const synced = readSiteSettings();
+        applySiteSettings(synced);
+        showSiteSettingsMessage("Site settings updated from another tab.", "muted");
+      });
+    }
+
+    initSiteSettings();
 
     const STORAGE_KEY = "hfExporterState";
     const DEBOUNCE_MS = 300;
@@ -1182,6 +1419,7 @@
       noteOptions: null,
       activeModel: null,
       activeNoteDrawerModel: null,
+      siteSettingsOpen: false,
     };
 
     let searchController = null;
@@ -1559,7 +1797,7 @@
     }
 
     function syncBodyScrollLock() {
-      if (state.activeModel || state.activeNoteDrawerModel) {
+      if (state.activeModel || state.activeNoteDrawerModel || state.siteSettingsOpen) {
         document.body.style.overflow = "hidden";
         return;
       }
@@ -1959,6 +2197,10 @@
     document.getElementById("panel-backdrop").addEventListener("click", closeDetailPanel);
     document.addEventListener("keydown", (e) => {
       if (e.key !== "Escape") return;
+      if (state.siteSettingsOpen) {
+        closeSiteSettingsPanel();
+        return;
+      }
       if (state.activeNoteDrawerModel) {
         closeNoteDrawer();
         return;
