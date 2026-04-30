@@ -317,6 +317,17 @@
       margin-top: 10px;
     }
 
+    .action-icon-btn {
+      width: 34px;
+      height: 34px;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      line-height: 1;
+    }
+
     .subtle-actions {
       justify-content: space-between;
       align-items: center;
@@ -1506,9 +1517,9 @@
             <td>${formatDate(item.updatedAt || item.createdAt)}</td>
             <td>
               <div class="actions" style="margin: 0;">
-                <button class="secondary" data-edit="${esc(item.id)}">Edit</button>
-                <button class="danger" data-delete="${esc(item.id)}">Delete</button>
-                <button class="danger" data-delete-model="${esc(item.modelId)}">Delete Model</button>
+                <button class="secondary action-icon-btn" data-edit="${esc(item.id)}" title="Edit" aria-label="Edit">✏️</button>
+                <button class="danger action-icon-btn" data-delete="${esc(item.id)}" title="Delete" aria-label="Delete">🗑️</button>
+                <button class="danger action-icon-btn" data-delete-model="${esc(item.modelId)}" title="Delete Model" aria-label="Delete Model">🗂️</button>
               </div>
             </td>
           </tr>
