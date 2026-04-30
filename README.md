@@ -35,6 +35,12 @@ Filter by task and author:
 uv run hf-exporter export "gpt" --task text-generation --author openai --output exports/gpt_models.csv
 ```
 
+Filter by library and note metadata:
+
+```bash
+uv run hf-exporter export "llama" --library transformers --note-role main --note-category llm-stack --min-ranking 7 --output exports/llama_main_candidates.csv
+```
+
 Run as a Python module:
 
 Note: module invocation is single-command style (`python -m hf_exporter QUERY ...`).
@@ -56,11 +62,23 @@ Supported argument and options:
 - `QUERY` (required argument): Search text used to find matching Hugging Face models.
 - `--task TEXT`: Filter results by pipeline task (for example `text-generation`).
 - `--author TEXT`: Filter results to models published by a specific author or organization.
+- `--library TEXT`: Filter results by library name (for example `transformers`).
 - `--output TEXT` (default: `models.csv`): Output file path for the exported results.
 - `--fmt TEXT` (default: `csv`): Output format. Use `csv` or `json`.
+- `--note-role TEXT`: Filter to models with notes matching the selected role.
+- `--note-category TEXT`: Filter to models with notes matching the selected category.
+- `--note-model-type TEXT`: Filter to models with notes matching the selected model type.
+- `--min-ranking INTEGER`: Minimum note ranking filter (1-10).
+- `--max-ranking INTEGER`: Maximum note ranking filter (1-10).
+- `--note-text TEXT`: Free-text note filter across notes/pros/cons/context.
 - `--install-completion`: Install shell tab-completion for your current shell (for example `bash`, `zsh`, or `fish`). This is a one-time setup command that adds completion support so the CLI can autocomplete flags and arguments when you press `Tab`.
 - `--show-completion`: Print shell completion script so you can copy/customize it manually.
 - `--help`: Show command help and exit.
+
+Export behavior with notes:
+
+- CSV exports include flat note summary columns (`note_count`, `average_ranking`).
+- JSON exports include both summary columns and nested `notes` per model.
 
 `--install-completion` details:
 

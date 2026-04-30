@@ -1,0 +1,5 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/home/paul/Documents/Projects/Python/huggingface_cli/hf-model-exporter/.venv/bin/python": true
+    }
+}
