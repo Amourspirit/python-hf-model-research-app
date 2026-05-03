@@ -22,6 +22,30 @@ services:
       - ./storage:/storage
     command: ["--help"]
 
+  hf-cli:
+    build: .
+    environment:
+      - HF_TOKEN=${HF_TOKEN:-}
+      - HF_HUB_OFFLINE=${HF_HUB_OFFLINE:-False}
+      - HF_HUB_DISABLE_TELEMETRY=${HF_HUB_DISABLE_TELEMETRY:-True}
+      - HF_HUB_DISABLE_PROGRESS_BARS=${HF_HUB_DISABLE_PROGRESS_BARS:-}
+      - HF_HUB_DISABLE_SYMLINKS_WARNING=${HF_HUB_DISABLE_SYMLINKS_WARNING:-False}
+      - HF_HUB_DISABLE_EXPERIMENTAL_WARNING=${HF_HUB_DISABLE_EXPERIMENTAL_WARNING:-False}
+      - HF_HUB_DISABLE_IMPLICIT_TOKEN=${HF_HUB_DISABLE_IMPLICIT_TOKEN:-False}
+      - HF_HUB_DISABLE_XET=${HF_HUB_DISABLE_XET:-False}
+      - HF_HUB_ETAG_TIMEOUT=${HF_HUB_ETAG_TIMEOUT:-10}
+      - HF_HUB_DOWNLOAD_TIMEOUT=${HF_HUB_DOWNLOAD_TIMEOUT:-10}
+      - HF_HUB_CACHE=/app/.cache/huggingface/hub
+      - HF_ASSETS_CACHE=/app/.cache/huggingface/assets
+      - HF_TOKEN_PATH=/app/.cache/huggingface/token
+      - HF_STORED_TOKENS_PATH=/app/.cache/huggingface/stored_tokens
+    volumes:
+      - ./storage/.cache/hf-cli:/app/.cache/huggingface
+    stdin_open: true
+    tty: true
+    entrypoint: ["uv", "run", "hf"]
+    command: ["--help"]
+
   hf-exporter-web:
     build: .
     environment:

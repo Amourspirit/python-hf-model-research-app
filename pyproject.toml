@@ -19,6 +19,7 @@ authors = [
 ]
 dependencies = [
     "huggingface_hub>=0.25.0",
+    "hf",
     "pandas>=2.2",
     "typer[all]>=0.12",
     "rich>=13.7",
