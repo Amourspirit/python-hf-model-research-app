@@ -39,15 +39,19 @@ services:
       - HF_HUB_CACHE=/app/.cache/huggingface/hub
       - HF_ASSETS_CACHE=/app/.cache/huggingface/assets
       - HF_TOKEN_PATH=/app/.cache/huggingface/token
-      - HF_STORED_TOKENS_PATH=/app/.cache/huggingface/stored_tokens
+      # https://huggingface.co/docs/huggingface_hub/v1.12.1/en/package_reference/environment_variables
     volumes:
-      - ./storage/.cache/hf-cli/hub:/app/.cache/huggingface/hub
       - ./storage/.cache/hf-cli/assets:/app/.cache/huggingface/assets
+      - ./storage/.cache/hf-cli/hub:/app/.cache/huggingface/hub
       - ./storage/.cache/hf-cli/token:/app/.cache/huggingface/token
-      - ./storage/.cache/hf-cli/stored_tokens:/app/.cache/huggingface/stored_tokens
     stdin_open: true
     tty: true
-    entrypoint: ["uv", "run", "hf"]
+    entrypoint:
+      [
+        "sh",
+        "-lc",
+          "mkdir -p /app/.cache/huggingface/assets /app/.cache/huggingface/hub /app/.cache/huggingface/token  && /bin/bash"
+      ]
     command: ["--help"]
 
   hf-exporter-web:
