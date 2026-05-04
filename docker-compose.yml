@@ -44,14 +44,14 @@ services:
       - HF_HUB_DISABLE_XET=${HF_HUB_DISABLE_XET:-False}
       - HF_HUB_ETAG_TIMEOUT=${HF_HUB_ETAG_TIMEOUT:-10}
       - HF_HUB_DOWNLOAD_TIMEOUT=${HF_HUB_DOWNLOAD_TIMEOUT:-10}
-      - HF_HOME=/storage/hf-shell
-      - HF_HUB_CACHE=/storage/hf-shell/cache
-      - HF_ASSETS_CACHE=/storage/hf-shell/assets
-      - HF_TOKEN_PATH=/storage/hf-shell/token
-      - HF_SHELL_DOWNLOAD_DIR=/storage/hf-shell/downloads
-      - HF_SHELL_CACHE_DIR=/storage/hf-shell/cache
+      - HF_HOME=${HF_HOME:-/storage/hf-shell}
+      - HF_HUB_CACHE=${HF_HUB_CACHE:-/storage/hf-shell/cache}
+      - HF_ASSETS_CACHE=${HF_ASSETS_CACHE:-/storage/hf-shell/assets}
+      - HF_TOKEN_PATH=${HF_TOKEN_PATH:-/storage/hf-shell/token}
+      - HF_SHELL_DOWNLOAD_DIR=${HF_SHELL_DOWNLOAD_DIR:-/storage/hf-shell/downloads}
+      - HF_SHELL_CACHE_DIR=${HF_SHELL_CACHE_DIR:-/storage/hf-shell/cache}
     volumes:
-      - ./storage/hf-shell:/storage/hf-shell
+      - ${HF_SHELL_HOST_DIR:-./storage/hf-shell}:/storage/hf-shell
     stdin_open: true
     tty: true
     entrypoint: ["/usr/local/bin/hf-shell-entrypoint"]
