@@ -1,6 +1,6 @@
 [project]
 name = "hf-model-research-app"
-version = "0.2.0"
+version = "0.3.0"
 description = "CLI to export Hugging Face models by query to CSV/JSON"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -27,7 +27,7 @@ dependencies = [
     "fastapi>=0.116.1",
     "uvicorn>=0.35.0",
 ]
-
+chmod -R 777 storage exports
 [project.scripts]
 hf-exporter = "hf_exporter.cli:app"
 
