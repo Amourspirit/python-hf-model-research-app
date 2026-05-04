@@ -1,6 +1,9 @@
 services:
   hf-exporter:
     build: .
+    env_file:
+      - path: .env
+        required: false
     environment:
       - HF_TOKEN=${HF_TOKEN:-}
       - HF_EXPORTER_DB_PATH=/storage/hf_exporter.db
@@ -14,6 +17,9 @@ services:
 
   hf-exporter-cli:
     build: .
+    env_file:
+      - path: .env
+        required: false
     environment:
       - HF_TOKEN=${HF_TOKEN:-}
       - HF_EXPORTER_DB_PATH=/storage/hf_exporter.db
@@ -24,6 +30,9 @@ services:
 
   hf-shell:
     build: .
+    env_file:
+      - path: .env
+        required: false
     environment:
       - HF_TOKEN=${HF_TOKEN:-}
       - HF_HUB_OFFLINE=${HF_HUB_OFFLINE:-False}
@@ -50,6 +59,9 @@ services:
 
   hf-exporter-web:
     build: .
+    env_file:
+      - path: .env
+        required: false
     environment:
       - HF_TOKEN=${HF_TOKEN:-}
       - HF_EXPORTER_STORAGE_DIR=/storage

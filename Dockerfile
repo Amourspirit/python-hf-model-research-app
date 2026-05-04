@@ -61,6 +61,18 @@ RUN cat > /usr/local/bin/hf-hub <<'EOF'
 #!/usr/bin/env sh
 set -e
 
+sanitize_segment() {
+	segment="$1"
+	segment="$(printf '%s' "$segment" | tr -c 'A-Za-z0-9._-' '_')"
+	segment="$(printf '%s' "$segment" | sed -E 's/_+/_/g; s/^[._-]+//; s/[._-]+$//')"
+
+	if [ -z "$segment" ] || [ "$segment" = "." ] || [ "$segment" = ".." ]; then
+		segment="_"
+	fi
+
+	printf '%s' "$segment"
+}
+
 if [ "$#" -eq 0 ]; then
 	exec uv run hf --help
 fi
@@ -68,9 +80,24 @@ fi
 if [ "$1" = "download" ]; then
 	has_local="0"
 	has_cache="0"
+	repo_id=""
+	needs_value="0"
+	arg_index=0
 	prev=""
 
 	for arg in "$@"; do
+		arg_index=$((arg_index + 1))
+		if [ "$arg_index" -eq 1 ]; then
+			prev="$arg"
+			continue
+		fi
+
+		if [ "$needs_value" = "1" ]; then
+			needs_value="0"
+			prev="$arg"
+			continue
+		fi
+
 		if [ "$prev" = "--local-dir" ]; then
 			has_local="1"
 		fi
@@ -85,13 +112,55 @@ if [ "$1" = "download" ]; then
 			--cache-dir|--cache-dir=*)
 				has_cache="1"
 				;;
+			--repo-type|--type|--revision|--include|--exclude|--cache-dir|--local-dir|--token|--max-workers|--format)
+				needs_value="1"
+				;;
+			-*)
+				;;
+			*)
+				if [ -z "$repo_id" ]; then
+					repo_id="$arg"
+				fi
+				;;
 		esac
 
 		prev="$arg"
 	done
 
 	if [ "$has_local" = "0" ]; then
-		set -- "$@" --local-dir "${HF_SHELL_DOWNLOAD_DIR:-/storage/hf-shell/downloads}"
+		download_root="${HF_SHELL_DOWNLOAD_DIR:-/storage/hf-shell/downloads}"
+		local_dir_default="$download_root"
+
+		if [ -n "$repo_id" ]; then
+			rest="$repo_id"
+
+			while :; do
+				segment="${rest%%/*}"
+				if [ "$rest" = "$segment" ]; then
+					rest=""
+				else
+					rest="${rest#*/}"
+				fi
+
+				clean_segment="$(sanitize_segment "$segment")"
+				local_dir_default="$local_dir_default/$clean_segment"
+
+				if [ -z "$rest" ]; then
+					break
+				fi
+			done
+		fi
+
+		case "$local_dir_default" in
+			"$download_root"|"$download_root"/*)
+				;;
+			*)
+				local_dir_default="$download_root"
+				;;
+		esac
+
+		mkdir -p "$local_dir_default"
+		set -- "$@" --local-dir "$local_dir_default"
 	fi
 
 	if [ "$has_cache" = "0" ]; then

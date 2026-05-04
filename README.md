@@ -12,7 +12,9 @@ You can use it as a command-line tool to search Hugging Face and export results,
 - Per-model note-taking and ranking (1-10) for evaluation workflows.
 - Rich note details: role, category, model type, labels (tags), note text, pros, cons, context, and ranking.
 - Search filtering by note metadata (role/category/model type/labels/ranking/text).
-- Docker Compose workflows for CLI and web usage.
+- Hugging Face Hub interactive shell (`hf-shell`) for downloading models with smart storage defaults.
+- Docker Compose workflows for CLI, Hugging Face Hub shell, and web usage.
+- Optional `.env` file support for all Compose services.
 - FastAPI web API plus browser UI for search, records, and project management.
 
 ## Requirements
@@ -141,7 +143,7 @@ Open:
 
 ## Running With Docker Compose
 
-This repository includes three Compose services: interactive CLI, direct CLI, and web app.
+This repository includes four Compose services: interactive CLI, direct CLI, Hugging Face Hub shell, and web app.
 
 ### 1) Interactive CLI Container
 
@@ -182,6 +184,69 @@ export HF_TOKEN=your_token_here
 docker compose run --rm hf-exporter
 ```
 
+### 4) Hugging Face Hub Shell
+
+An interactive shell pre-configured for Hugging Face Hub downloads. Cache and download directories are mapped to `storage/hf-shell/` on the host.
+
+```bash
+docker compose run --rm hf-shell
+```
+
+Inside the shell, use the `hf` command:
+
+```bash
+hf download mlx-community/clip-vit-base-patch32
+hf download google/gemma-3-1b-it --include "*.safetensors"
+hf download --help
+```
+
+When no `--local-dir` is given, files are saved to a nested path derived from the repo ID:
+
+```
+storage/hf-shell/downloads/<owner>/<repo-name>/
+```
+
+To use an explicit destination:
+
+```bash
+hf download mlx-community/clip-vit-base-patch32 --local-dir /storage/hf-shell/downloads/my-clip
+```
+
+To run a single download without entering the shell:
+
+```bash
+docker compose run --rm hf-shell hf download mlx-community/clip-vit-base-patch32
+```
+
+To pass a token at runtime:
+
+```bash
+HF_TOKEN=hf_xxx docker compose run --rm hf-shell
+```
+
+## Environment Configuration
+
+All Compose services load `.env` from the project root when it exists (optional — no error if absent). A documented template is provided at [`.env.example`](.env.example).
+
+```bash
+cp .env.example .env
+```
+
+Key variables:
+
+| Variable | Default | Description |
+|---|---|---|
+| `HF_TOKEN` | _(unset)_ | Hugging Face User Access Token |
+| `HF_HUB_OFFLINE` | `False` | Disable all network calls; use local cache only |
+| `HF_HUB_DISABLE_TELEMETRY` | `True` | Disable telemetry across the HF Python ecosystem |
+| `HF_SHELL_DOWNLOAD_DIR` | `/storage/hf-shell/downloads` | Root for implicit `hf download` destinations |
+| `HF_SHELL_CACHE_DIR` | `/storage/hf-shell/cache` | Default `--cache-dir` passed to `hf download` |
+| `HF_HOME` | `/storage/hf-shell` | HF home; parent of cache, assets, and token file |
+| `HF_HUB_ETAG_TIMEOUT` | `10` | Seconds before metadata requests time out |
+| `HF_HUB_DOWNLOAD_TIMEOUT` | `10` | Seconds before download requests time out |
+
+See [`.env.example`](.env.example) for the full list including Xet transfer variables.
+
 ## Notes, Rankings, and Research Metadata
 
 Each model can have multiple evaluation records with:
@@ -219,11 +284,20 @@ Project-scoped SQLite storage:
 The app bootstraps a `default` project automatically.
 If legacy `storage/hf_exporter.db` exists, it is migrated once into `storage/projects/default/project.db` when appropriate.
 
+Hugging Face Hub shell storage:
+
+- `storage/hf-shell/downloads/<owner>/<repo>/` — downloaded model files (nested by repo ID)
+- `storage/hf-shell/cache/` — HF hub cache (symlinked blobs and snapshots)
+- `storage/hf-shell/assets/` — downstream-library asset cache
+- `storage/hf-shell/token` — active HF token file
+
 Environment variables:
 
 - `HF_TOKEN`: optional Hugging Face token.
 - `HF_EXPORTER_DB_PATH`: direct DB path override (primarily CLI flow).
 - `HF_EXPORTER_STORAGE_DIR`: base storage directory for project-aware web flow.
+- `HF_SHELL_DOWNLOAD_DIR`: root for implicit `hf download` destinations.
+- `HF_SHELL_CACHE_DIR`: default `--cache-dir` passed to `hf download`.
 
 `storage/` is durable local app state and is intentionally ignored by git.
 
