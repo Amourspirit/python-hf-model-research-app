@@ -9,6 +9,10 @@ wheels/
 # Virtual environments
 .venv
 
+# OS / editor
+.DS_Store
+.idea/
+
 # Tool caches
 .ruff_cache/
 .pytest_cache/
