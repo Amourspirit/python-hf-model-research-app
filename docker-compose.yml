@@ -1,5 +1,6 @@
 services:
   hf-exporter:
+    profiles: [exporter]
     build: .
     env_file:
       - path: .env
@@ -16,6 +17,7 @@ services:
     command: []
 
   hf-exporter-cli:
+    profiles: [cli]
     build: .
     env_file:
       - path: .env
@@ -29,6 +31,7 @@ services:
     command: ["--help"]
 
   hf-shell:
+    profiles: [shell]
     build: .
     env_file:
       - path: .env
@@ -58,6 +61,7 @@ services:
     command: []
 
   hf-exporter-web:
+    profiles: [web]
     build: .
     env_file:
       - path: .env
