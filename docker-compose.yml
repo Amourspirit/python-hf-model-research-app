@@ -66,7 +66,7 @@ services:
       - HF_TOKEN=${HF_TOKEN:-}
       - HF_EXPORTER_STORAGE_DIR=/storage
     ports:
-      - "8111:8000"
+      - "${WEB_PORT:?SET WEB_PORT in .env}:8000"
     volumes:
       - ${HF_EXPORTS_HOST_DIR:-./exports}:/output
       - ${HF_STORAGE_HOST_DIR:-./storage}:/storage
