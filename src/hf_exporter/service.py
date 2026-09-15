@@ -28,10 +28,9 @@ MODEL_COLUMNS = [
 
 @lru_cache(maxsize=4)
 def _build_api(token: str) -> HfApi:
-    api = HfApi()
     if token:
-        api.login(token=token)
-    return api
+        return HfApi(token=token)
+    return HfApi()
 
 
 def get_api() -> HfApi:
@@ -53,7 +52,9 @@ def query_models(
     if library:
         filters["library"] = library
 
-    model_filter = ModelFilter(**filters) if ModelFilter and filters else (filters or None)
+    model_filter = (
+        ModelFilter(**filters) if ModelFilter and filters else (filters or None)
+    )
     models = list(get_api().list_models(search=query, filter=model_filter))
     return [normalize_model(model) for model in models]
 
@@ -83,21 +84,33 @@ def filter_rows(
 
     if task:
         task_text = task.strip().lower()
-        filtered = [r for r in filtered if (r.get("pipeline_tag") or "").lower() == task_text]
+        filtered = [
+            r for r in filtered if (r.get("pipeline_tag") or "").lower() == task_text
+        ]
 
     if author:
         author_text = author.strip().lower()
-        filtered = [r for r in filtered if author_text in (str(r.get("author") or "").lower())]
+        filtered = [
+            r for r in filtered if author_text in (str(r.get("author") or "").lower())
+        ]
 
     if library:
         library_text = library.strip().lower()
-        filtered = [r for r in filtered if library_text in (str(r.get("library_name") or "").lower())]
+        filtered = [
+            r
+            for r in filtered
+            if library_text in (str(r.get("library_name") or "").lower())
+        ]
 
     if min_downloads is not None:
-        filtered = [r for r in filtered if int(r.get("downloads") or 0) >= min_downloads]
+        filtered = [
+            r for r in filtered if int(r.get("downloads") or 0) >= min_downloads
+        ]
 
     if max_downloads is not None:
-        filtered = [r for r in filtered if int(r.get("downloads") or 0) <= max_downloads]
+        filtered = [
+            r for r in filtered if int(r.get("downloads") or 0) <= max_downloads
+        ]
 
     if min_likes is not None:
         filtered = [r for r in filtered if int(r.get("likes") or 0) >= min_likes]
@@ -108,7 +121,9 @@ def filter_rows(
     return filtered
 
 
-def sort_rows(rows: list[dict[str, Any]], sort_by: str, sort_dir: str = "asc") -> list[dict[str, Any]]:
+def sort_rows(
+    rows: list[dict[str, Any]], sort_by: str, sort_dir: str = "asc"
+) -> list[dict[str, Any]]:
     if sort_by not in MODEL_COLUMNS:
         sort_by = "modelId"
 
@@ -117,13 +132,19 @@ def sort_rows(rows: list[dict[str, Any]], sort_by: str, sort_dir: str = "asc") -
     def key_fn(row: dict[str, Any]) -> Any:
         value = row.get(sort_by)
         if value is None:
-            return "" if sort_by in {"modelId", "author", "pipeline_tag", "library_name"} else 0
+            return (
+                ""
+                if sort_by in {"modelId", "author", "pipeline_tag", "library_name"}
+                else 0
+            )
         return value
 
     return sorted(rows, key=key_fn, reverse=reverse)
 
 
-def paginate_rows(rows: list[dict[str, Any]], page: int, page_size: int) -> tuple[list[dict[str, Any]], int, int]:
+def paginate_rows(
+    rows: list[dict[str, Any]], page: int, page_size: int
+) -> tuple[list[dict[str, Any]], int, int]:
     safe_page_size = max(1, page_size)
     total = len(rows)
     total_pages = max(1, math.ceil(total / safe_page_size))
